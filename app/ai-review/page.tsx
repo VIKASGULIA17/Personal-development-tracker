@@ -21,7 +21,7 @@ import {
 } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
 import { useToast } from "@/hooks/use-toast"
-import { generateAIInsights, getWeeklyData, getMonthlyData } from "@/lib/ai-analysis"
+import { generateAIInsights, getWeeklyData, getMonthlyData } from "@/lib/db"
 
 export default function AIReviewPage() {
   const { user } = useAuth()
@@ -99,6 +99,18 @@ export default function AIReviewPage() {
             </Card>
           ))}
         </div>
+      </div>
+    )
+  }
+
+  if (!user) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Card className="p-6">
+          <div className="text-center">
+            <p className="text-lg font-semibold">Please log in to view AI performance review</p>
+          </div>
+        </Card>
       </div>
     )
   }

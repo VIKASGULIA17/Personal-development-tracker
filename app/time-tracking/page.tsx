@@ -7,39 +7,38 @@ import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
 import { useToast } from "@/hooks/use-toast"
+import { useAuth } from "@/lib/auth-context"
+import { getTimeSessions, createTimeSession } from "@/lib/db"
 
 export default function TimeTrackingPage() {
   const { toast } = useToast()
+  const { user } = useAuth()
   const [isRunning, setIsRunning] = useState(false)
   const [time, setTime] = useState(0) // in seconds
-  const [currentTask, setCurrentTask] = useState(null)
-  const [sessions, setSessions] = useState([
-    {
-      id: 1,
-      task: "React Development",
-      duration: 1800, // 30 minutes
-      category: "coding",
-      date: new Date().toISOString().split("T")[0],
-      completed: true,
-    },
-    {
-      id: 2,
-      task: "Reading - Atomic Habits",
-      duration: 1500, // 25 minutes
-      category: "learning",
-      date: new Date().toISOString().split("T")[0],
-      completed: true,
-    },
-    {
-      id: 3,
-      task: "Exercise",
-      duration: 2700, // 45 minutes
-      category: "health",
-      date: new Date().toISOString().split("T")[0],
-      completed: true,
-    },
-  ])
+  const [currentTask, setCurrentTask] = useState("")
+  const [currentCategory, setCurrentCategory] = useState("focus")
+  const [sessions, setSessions] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false)
+
+  const [sessionForm, setSessionForm] = useState({
+    task: "",
+    category: "focus",
+    duration: "",
+  })
 
   const [pomodoroSettings] = useState({
     workDuration: 25 * 60, // 25 minutes
@@ -47,6 +46,14 @@ export default function TimeTrackingPage() {
     longBreak: 15 * 60, // 15 minutes
   })
 
+  // Fetch sessions on component mount
+  useEffect(() => {
+    if (user?.id) {
+      fetchSessions()
+    }
+  }, [user])
+
+  // Timer effect
   useEffect(() => {
     let interval = null
     if (isRunning) {
@@ -58,6 +65,28 @@ export default function TimeTrackingPage() {
     }
     return () => clearInterval(interval)
   }, [isRunning, time])
+
+  const fetchSessions = async () => {
+    if (!user?.id) return
+
+    try {
+      setLoading(true)
+      setError(null)
+      const data = await getTimeSessions(user.id)
+      setSessions(data)
+    } catch (err) {
+      // Handle missing table gracefully
+      if (err.message?.includes('relation "public.time_sessions" does not exist')) {
+        setError("Time tracking table not set up yet. Please run the database setup scripts.")
+        setSessions([]) // Use empty array as fallback
+      } else {
+        setError("Failed to fetch time sessions")
+      }
+      console.error("Error fetching sessions:", err)
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const startTimer = () => {
     setIsRunning(true)
@@ -75,37 +104,94 @@ export default function TimeTrackingPage() {
     })
   }
 
-  const stopTimer = () => {
-    if (time > 0) {
-      const newSession = {
-        id: sessions.length + 1,
-        task: currentTask || "Focus Session",
-        duration: time,
-        category: "focus",
-        date: new Date().toISOString().split("T")[0],
-        completed: true,
-      }
-      setSessions([...sessions, newSession])
+  const stopTimer = async () => {
+    if (time > 0 && user?.id) {
+      try {
+        const sessionData = {
+          user_id: user.id,
+          task: currentTask || "Focus Session",
+          duration: time,
+          category: currentCategory,
+          date: new Date().toISOString().split("T")[0],
+          completed: true,
+        }
 
-      toast({
-        title: "Session Completed!",
-        description: `Great job! You focused for ${formatTime(time)}`,
-      })
+        const createdSession = await createTimeSession(sessionData)
+        if (createdSession) {
+          setSessions((prev) => [createdSession, ...prev])
+          toast({
+            title: "Session Completed!",
+            description: `Great job! You focused for ${formatTime(time)}`,
+          })
+        }
+      } catch (err) {
+        if (err.message?.includes('relation "public.time_sessions" does not exist')) {
+          // Still show success message but don't save to database
+          toast({
+            title: "Session Completed!",
+            description: `Great job! You focused for ${formatTime(time)} (Note: Database not set up)`,
+          })
+        } else {
+          setError("Failed to save session")
+          console.error("Error saving session:", err)
+        }
+      }
     }
 
     setIsRunning(false)
     setTime(0)
-    setCurrentTask(null)
+    setCurrentTask("")
+    setCurrentCategory("focus")
   }
 
   const startPomodoro = () => {
     setTime(0)
     setCurrentTask("Pomodoro Session")
+    setCurrentCategory("focus")
     setIsRunning(true)
     toast({
       title: "Pomodoro Started",
       description: "25 minutes of focused work ahead!",
     })
+  }
+
+  const handleAddSession = async (e) => {
+    e.preventDefault()
+    if (!user?.id) return
+
+    try {
+      const sessionData = {
+        user_id: user.id,
+        task: sessionForm.task,
+        duration: Number.parseInt(sessionForm.duration) * 60, // convert minutes to seconds
+        category: sessionForm.category,
+        date: new Date().toISOString().split("T")[0],
+        completed: true,
+      }
+
+      const createdSession = await createTimeSession(sessionData)
+      if (createdSession) {
+        setSessions((prev) => [createdSession, ...prev])
+        setSessionForm({ task: "", category: "focus", duration: "" })
+        setIsAddModalOpen(false)
+        toast({
+          title: "Session Added!",
+          description: "Time session has been logged",
+        })
+      }
+    } catch (err) {
+      if (err.message?.includes('relation "public.time_sessions" does not exist')) {
+        setError("Time tracking table not set up yet. Please run the database setup scripts.")
+        toast({
+          title: "Database Setup Required",
+          description: "Please set up the time tracking table first",
+          variant: "destructive",
+        })
+      } else {
+        setError("Failed to add session")
+      }
+      console.error("Error adding session:", err)
+    }
   }
 
   const formatTime = (seconds) => {
@@ -132,6 +218,35 @@ export default function TimeTrackingPage() {
 
   const todaySessions = sessions.filter((s) => s.date === new Date().toISOString().split("T")[0]).length
 
+  const weeklyTime = sessions
+    .filter((s) => {
+      const sessionDate = new Date(s.date)
+      const weekAgo = new Date()
+      weekAgo.setDate(weekAgo.getDate() - 7)
+      return sessionDate >= weekAgo
+    })
+    .reduce((acc, s) => acc + s.duration, 0)
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    )
+  }
+
+  if (!user) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Card className="p-6">
+          <div className="text-center">
+            <p className="text-lg font-semibold">Please log in to track your time</p>
+          </div>
+        </Card>
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-4 md:space-y-6">
       {/* Header */}
@@ -140,11 +255,85 @@ export default function TimeTrackingPage() {
           <h1 className="text-2xl md:text-3xl font-bold">Time Tracking</h1>
           <p className="text-sm md:text-base text-muted-foreground">Track your focus time and productivity</p>
         </div>
-        <Button onClick={startPomodoro} className="w-full md:w-auto">
-          <Plus className="mr-2 h-4 w-4" />
-          Start Pomodoro
-        </Button>
+        <div className="flex gap-2">
+          <Button onClick={startPomodoro} className="w-full md:w-auto">
+            <Plus className="mr-2 h-4 w-4" />
+            Start Pomodoro
+          </Button>
+          <Dialog open={isAddModalOpen} onOpenChange={setIsAddModalOpen}>
+            <DialogTrigger asChild>
+              <Button variant="outline" className="w-full md:w-auto">
+                <Plus className="mr-2 h-4 w-4" />
+                Add Session
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-md">
+              <DialogHeader>
+                <DialogTitle>Add Time Session</DialogTitle>
+                <DialogDescription>Log a completed time session manually</DialogDescription>
+              </DialogHeader>
+              <form onSubmit={handleAddSession} className="space-y-4">
+                <div>
+                  <Label htmlFor="task">Task</Label>
+                  <Input
+                    id="task"
+                    value={sessionForm.task}
+                    onChange={(e) => setSessionForm((prev) => ({ ...prev, task: e.target.value }))}
+                    placeholder="What did you work on?"
+                    required
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="category">Category</Label>
+                  <Select
+                    value={sessionForm.category}
+                    onValueChange={(value) => setSessionForm((prev) => ({ ...prev, category: value }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="focus">Focus</SelectItem>
+                      <SelectItem value="coding">Coding</SelectItem>
+                      <SelectItem value="learning">Learning</SelectItem>
+                      <SelectItem value="health">Health</SelectItem>
+                      <SelectItem value="creative">Creative</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label htmlFor="duration">Duration (minutes)</Label>
+                  <Input
+                    id="duration"
+                    type="number"
+                    value={sessionForm.duration}
+                    onChange={(e) => setSessionForm((prev) => ({ ...prev, duration: e.target.value }))}
+                    placeholder="25"
+                    required
+                  />
+                </div>
+                <div className="flex justify-end space-x-2">
+                  <Button type="button" variant="outline" onClick={() => setIsAddModalOpen(false)}>
+                    Cancel
+                  </Button>
+                  <Button type="submit">Add Session</Button>
+                </div>
+              </form>
+            </DialogContent>
+          </Dialog>
+        </div>
       </div>
+
+      {error && (
+        <Card className="border-red-200 bg-red-50">
+          <CardContent className="p-4">
+            <div className="text-red-600">
+              <p className="font-semibold">Error</p>
+              <p>{error}</p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Timer Section */}
       <Card>
@@ -156,9 +345,26 @@ export default function TimeTrackingPage() {
           <div className="text-center space-y-4 md:space-y-6">
             <div className="text-4xl md:text-6xl font-bold font-mono">{formatTime(time)}</div>
 
-            {currentTask && (
-              <div className="text-sm md:text-base text-muted-foreground">
-                Working on: <span className="font-medium">{currentTask}</span>
+            {isRunning && (
+              <div className="space-y-2">
+                <Input
+                  placeholder="What are you working on?"
+                  value={currentTask}
+                  onChange={(e) => setCurrentTask(e.target.value)}
+                  className="text-center"
+                />
+                <Select value={currentCategory} onValueChange={setCurrentCategory}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="focus">Focus</SelectItem>
+                    <SelectItem value="coding">Coding</SelectItem>
+                    <SelectItem value="learning">Learning</SelectItem>
+                    <SelectItem value="health">Health</SelectItem>
+                    <SelectItem value="creative">Creative</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             )}
 
@@ -237,7 +443,7 @@ export default function TimeTrackingPage() {
             </div>
             <div className="text-center md:text-left">
               <p className="text-xs md:text-sm font-medium leading-none">This Week</p>
-              <p className="text-lg md:text-2xl font-bold">{formatDuration(totalTimeToday * 5)}</p>
+              <p className="text-lg md:text-2xl font-bold">{formatDuration(weeklyTime)}</p>
             </div>
           </CardContent>
         </Card>
@@ -245,15 +451,12 @@ export default function TimeTrackingPage() {
 
       {/* Sessions History */}
       <Tabs defaultValue="today" className="w-full">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="today" className="text-xs md:text-sm">
             Today
           </TabsTrigger>
           <TabsTrigger value="week" className="text-xs md:text-sm">
             This Week
-          </TabsTrigger>
-          <TabsTrigger value="pomodoro" className="text-xs md:text-sm">
-            Pomodoro
           </TabsTrigger>
           <TabsTrigger value="categories" className="text-xs md:text-sm">
             Categories
@@ -315,71 +518,22 @@ export default function TimeTrackingPage() {
               <div className="space-y-4">
                 <div className="grid gap-4 md:grid-cols-2">
                   <div className="text-center p-4 border rounded-lg">
-                    <div className="text-2xl md:text-3xl font-bold text-primary">
-                      {formatDuration(totalTimeToday * 7)}
-                    </div>
+                    <div className="text-2xl md:text-3xl font-bold text-primary">{formatDuration(weeklyTime)}</div>
                     <p className="text-xs md:text-sm text-muted-foreground">Total Time</p>
                   </div>
                   <div className="text-center p-4 border rounded-lg">
-                    <div className="text-2xl md:text-3xl font-bold text-green-600">{todaySessions * 7}</div>
+                    <div className="text-2xl md:text-3xl font-bold text-green-600">
+                      {
+                        sessions.filter((s) => {
+                          const sessionDate = new Date(s.date)
+                          const weekAgo = new Date()
+                          weekAgo.setDate(weekAgo.getDate() - 7)
+                          return sessionDate >= weekAgo
+                        }).length
+                      }
+                    </div>
                     <p className="text-xs md:text-sm text-muted-foreground">Total Sessions</p>
                   </div>
-                </div>
-
-                <div className="space-y-2">
-                  {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((day, index) => (
-                    <div key={day} className="flex items-center gap-4">
-                      <span className="text-sm font-medium w-12">{day}</span>
-                      <Progress value={Math.random() * 100} className="h-2 flex-1" />
-                      <span className="text-xs text-muted-foreground w-16">
-                        {formatDuration(Math.floor(Math.random() * 7200))}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="pomodoro" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg md:text-xl">Pomodoro Technique</CardTitle>
-              <CardDescription className="text-sm">25-minute focused work sessions</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4 md:space-y-6">
-                <div className="grid gap-4 md:grid-cols-3">
-                  <div className="text-center p-4 border rounded-lg">
-                    <div className="text-xl md:text-2xl font-bold">25m</div>
-                    <p className="text-xs md:text-sm text-muted-foreground">Work Session</p>
-                  </div>
-                  <div className="text-center p-4 border rounded-lg">
-                    <div className="text-xl md:text-2xl font-bold">5m</div>
-                    <p className="text-xs md:text-sm text-muted-foreground">Short Break</p>
-                  </div>
-                  <div className="text-center p-4 border rounded-lg">
-                    <div className="text-xl md:text-2xl font-bold">15m</div>
-                    <p className="text-xs md:text-sm text-muted-foreground">Long Break</p>
-                  </div>
-                </div>
-
-                <div className="text-center">
-                  <Button onClick={startPomodoro} size="lg" className="w-full md:w-auto">
-                    <Play className="mr-2 h-4 w-4" />
-                    Start Pomodoro Session
-                  </Button>
-                </div>
-
-                <div className="p-3 md:p-4 bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg">
-                  <h4 className="font-medium text-sm md:text-base mb-2">How it works:</h4>
-                  <ul className="text-xs md:text-sm text-muted-foreground space-y-1">
-                    <li>• Work for 25 minutes with full focus</li>
-                    <li>• Take a 5-minute break</li>
-                    <li>• After 4 sessions, take a 15-minute break</li>
-                    <li>• Repeat the cycle throughout your day</li>
-                  </ul>
                 </div>
               </div>
             </CardContent>
@@ -394,11 +548,12 @@ export default function TimeTrackingPage() {
             </CardHeader>
             <CardContent>
               <div className="space-y-3 md:space-y-4">
-                {["coding", "learning", "health", "focus"].map((category) => {
+                {["focus", "coding", "learning", "health", "creative"].map((category) => {
                   const categoryTime = sessions
                     .filter((s) => s.category === category)
                     .reduce((acc, s) => acc + s.duration, 0)
-                  const percentage = totalTimeToday > 0 ? (categoryTime / totalTimeToday) * 100 : 0
+                  const totalTime = sessions.reduce((acc, s) => acc + s.duration, 0)
+                  const percentage = totalTime > 0 ? (categoryTime / totalTime) * 100 : 0
 
                   return (
                     <div key={category} className="space-y-2">

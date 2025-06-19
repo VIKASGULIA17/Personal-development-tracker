@@ -8,85 +8,110 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Progress } from "@/components/ui/progress"
 import { useAuth } from "@/lib/auth-context"
 import { Skeleton } from "@/components/ui/skeleton"
+import { getAchievements } from "@/lib/db"
 
 export default function AchievementsPage() {
   const [achievements, setAchievements] = useState([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
   const { user } = useAuth()
 
   useEffect(() => {
-    // Mock data for achievements
-    const mockAchievements = [
-      {
-        id: 1,
-        name: "First Steps",
-        description: "Complete your first task",
-        badge_type: "milestone",
-        date_earned: "2024-01-15",
-        icon: Target,
-        color: "bg-blue-500",
-        earned: true,
-      },
-      {
-        id: 2,
-        name: "Week Warrior",
-        description: "Complete tasks for 7 consecutive days",
-        badge_type: "streak",
-        date_earned: "2024-01-22",
-        icon: Zap,
-        color: "bg-yellow-500",
-        earned: true,
-      },
-      {
-        id: 3,
-        name: "Skill Master",
-        description: "Complete 5 skills",
-        badge_type: "milestone",
-        date_earned: null,
-        icon: Star,
-        color: "bg-purple-500",
-        earned: false,
-        progress: 60,
-      },
-      {
-        id: 4,
-        name: "Bookworm",
-        description: "Read 10 books",
-        badge_type: "milestone",
-        date_earned: "2024-02-01",
-        icon: Award,
-        color: "bg-green-500",
-        earned: true,
-      },
-      {
-        id: 5,
-        name: "Fitness Enthusiast",
-        description: "Complete 30 workouts",
-        badge_type: "milestone",
-        date_earned: null,
-        icon: Medal,
-        color: "bg-red-500",
-        earned: false,
-        progress: 75,
-      },
-      {
-        id: 6,
-        name: "Money Manager",
-        description: "Track expenses for 30 days",
-        badge_type: "streak",
-        date_earned: null,
-        icon: Trophy,
-        color: "bg-indigo-500",
-        earned: false,
-        progress: 40,
-      },
-    ]
-
-    setTimeout(() => {
-      setAchievements(mockAchievements)
-      setLoading(false)
-    }, 1000)
+    if (user?.id) {
+      fetchAchievements()
+    }
   }, [user])
+
+  const fetchAchievements = async () => {
+    if (!user?.id) return
+
+    try {
+      setLoading(true)
+      setError(null)
+      const data = await getAchievements(user.id)
+
+      // Transform database achievements and add mock achievements for demo
+      const transformedAchievements = [
+        ...data.map((achievement) => ({
+          id: achievement.id,
+          name: achievement.name,
+          description: achievement.description,
+          badge_type: achievement.badge_type,
+          date_earned: achievement.date_earned,
+          icon: getIconForBadgeType(achievement.badge_type),
+          color: getColorForBadgeType(achievement.badge_type),
+          earned: true,
+        })),
+        // Add some mock achievements for demo purposes
+        {
+          id: "mock-1",
+          name: "First Steps",
+          description: "Complete your first task",
+          badge_type: "milestone",
+          date_earned: null,
+          icon: Target,
+          color: "bg-blue-500",
+          earned: false,
+          progress: 60,
+        },
+        {
+          id: "mock-2",
+          name: "Week Warrior",
+          description: "Complete tasks for 7 consecutive days",
+          badge_type: "streak",
+          date_earned: null,
+          icon: Zap,
+          color: "bg-yellow-500",
+          earned: false,
+          progress: 40,
+        },
+        {
+          id: "mock-3",
+          name: "Fitness Enthusiast",
+          description: "Complete 30 workouts",
+          badge_type: "milestone",
+          date_earned: null,
+          icon: Medal,
+          color: "bg-red-500",
+          earned: false,
+          progress: 75,
+        },
+      ]
+
+      setAchievements(transformedAchievements)
+    } catch (err) {
+      setError("Failed to fetch achievements")
+      console.error("Error fetching achievements:", err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const getIconForBadgeType = (badgeType) => {
+    switch (badgeType) {
+      case "milestone":
+        return Star
+      case "streak":
+        return Zap
+      case "completion":
+        return Trophy
+      default:
+        return Award
+    }
+  }
+
+  const getColorForBadgeType = (badgeType) => {
+    switch (badgeType) {
+      case "milestone":
+        return "bg-purple-500"
+      case "streak":
+        return "bg-yellow-500"
+      case "completion":
+        return "bg-green-500"
+      default:
+        return "bg-blue-500"
+    }
+  }
 
   const earnedAchievements = achievements.filter((a) => a.earned)
   const unlockedAchievements = achievements.filter((a) => !a.earned)
@@ -115,12 +140,35 @@ export default function AchievementsPage() {
     )
   }
 
+  if (!user) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Card className="p-6">
+          <div className="text-center">
+            <p className="text-lg font-semibold">Please log in to view your achievements</p>
+          </div>
+        </Card>
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold">Achievements</h1>
         <p className="text-muted-foreground">Celebrate your milestones and track your progress</p>
       </div>
+
+      {error && (
+        <Card className="border-red-200 bg-red-50">
+          <CardContent className="p-4">
+            <div className="text-red-600">
+              <p className="font-semibold">Error</p>
+              <p>{error}</p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>

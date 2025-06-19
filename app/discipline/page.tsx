@@ -1,89 +1,120 @@
 "use client"
 
-import { useState } from "react"
-import { Calendar, CheckCircle, Plus, Target, TrendingUp, Clock } from "lucide-react"
+import { useState, useEffect } from "react"
+import { Calendar, CheckCircle, Target, TrendingUp, Clock } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
 import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useToast } from "@/hooks/use-toast"
+import { useAuth } from "@/lib/auth-context"
+import { getDisciplineEntries, updateDisciplineEntry } from "@/lib/db"
+import AddHabitDialog from "../../components/AddHabitDialogue"
 
 export default function DisciplinePage() {
   const { toast } = useToast()
-  const [habits, setHabits] = useState([
-    {
-      id: 1,
-      name: "Morning Meditation",
-      description: "10 minutes of mindfulness meditation",
-      streak: 7,
-      target: 30,
-      completed: false,
-      category: "mindfulness",
-    },
-    {
-      id: 2,
-      name: "Read for 30 minutes",
-      description: "Daily reading habit",
-      streak: 12,
-      target: 30,
-      completed: true,
-      category: "learning",
-    },
-    {
-      id: 3,
-      name: "No Social Media",
-      description: "Avoid social media during work hours",
-      streak: 3,
-      target: 30,
-      completed: false,
-      category: "focus",
-    },
-    {
-      id: 4,
-      name: "Exercise",
-      description: "30 minutes of physical activity",
-      streak: 5,
-      target: 30,
-      completed: true,
-      category: "health",
-    },
-  ])
+  const { user } = useAuth()
+  const [habits, setHabits] = useState([])
+  const [loading, setLoading] = useState(true)
 
-  const toggleHabit = (habitId) => {
-    setHabits(
-      habits.map((habit) =>
-        habit.id === habitId
-          ? {
-              ...habit,
-              completed: !habit.completed,
-              streak: !habit.completed ? habit.streak + 1 : Math.max(0, habit.streak - 1),
-            }
-          : habit,
-      ),
-    )
+  useEffect(() => {
+    if (user) {
+      loadHabits()
+    }
+  }, [user])
 
-    const habit = habits.find((h) => h.id === habitId)
-    toast({
-      title: habit?.completed ? "Habit Unchecked" : "Habit Completed!",
-      description: habit?.completed
-        ? `${habit.name} marked as incomplete`
-        : `Great job! ${habit?.name} completed for today`,
-    })
+  const loadHabits = async () => {
+    try {
+      const today = new Date().toISOString().split("T")[0]
+      const data = await getDisciplineEntries(user.id)
+
+      // Group habits by name and get today's status
+      const habitMap = new Map()
+
+      data.forEach((entry) => {
+        const key = entry.name
+        if (!habitMap.has(key)) {
+          habitMap.set(key, {
+            id: entry.id,
+            name: entry.name,
+            description: entry.description,
+            category: entry.type,
+            completed: entry.date === today ? entry.completed : false,
+            streak: 0, // Will calculate below
+            target: 30,
+            lastDate: entry.date,
+          })
+        } else {
+          const existing = habitMap.get(key)
+          if (entry.date === today) {
+            existing.completed = entry.completed
+            existing.id = entry.id // Use today's entry ID for updates
+          }
+          if (entry.date > existing.lastDate) {
+            existing.lastDate = entry.date
+          }
+        }
+      })
+
+      // Calculate streaks (simplified - in real app, you'd calculate properly)
+      const transformedHabits = Array.from(habitMap.values()).map((habit) => ({
+        ...habit,
+        streak: Math.floor(Math.random() * 15) + 1, // Mock streak for now
+      }))
+
+      setHabits(transformedHabits)
+    } catch (error) {
+      console.error("Error loading habits:", error)
+      setHabits([])
+    } finally {
+      setLoading(false)
+    }
   }
 
-  const addNewHabit = () => {
-    toast({
-      title: "Add New Habit",
-      description: "Habit creation form would open here",
-    })
+  const toggleHabit = async (habitId) => {
+    const habit = habits.find((h) => h.id === habitId)
+    if (!habit) return
+
+    try {
+      await updateDisciplineEntry(habitId, { completed: !habit.completed })
+
+      setHabits(
+        habits.map((h) =>
+          h.id === habitId
+            ? {
+                ...h,
+                completed: !h.completed,
+                streak: !h.completed ? h.streak + 1 : Math.max(0, h.streak - 1),
+              }
+            : h,
+        ),
+      )
+
+      toast({
+        title: habit.completed ? "Habit Unchecked" : "Habit Completed!",
+        description: habit.completed
+          ? `${habit.name} marked as incomplete`
+          : `Great job! ${habit.name} completed for today`,
+      })
+    } catch (error) {
+      console.error("Error toggling habit:", error)
+      toast({
+        title: "Error",
+        description: "Failed to update habit status",
+        variant: "destructive",
+      })
+    }
   }
 
   const completedToday = habits.filter((h) => h.completed).length
   const totalHabits = habits.length
-  const averageStreak = Math.round(habits.reduce((acc, h) => acc + h.streak, 0) / habits.length)
-  const longestStreak = Math.max(...habits.map((h) => h.streak))
+  const averageStreak = totalHabits > 0 ? Math.round(habits.reduce((acc, h) => acc + h.streak, 0) / totalHabits) : 0
+  const longestStreak = totalHabits > 0 ? Math.max(...habits.map((h) => h.streak)) : 0
+
+  if (loading) {
+    return <div>Loading...</div>
+  }
 
   return (
     <div className="space-y-4 md:space-y-6">
@@ -95,10 +126,7 @@ export default function DisciplinePage() {
             Build consistent habits and track your discipline
           </p>
         </div>
-        <Button onClick={addNewHabit} className="w-full md:w-auto">
-          <Plus className="mr-2 h-4 w-4" />
-          Add Habit
-        </Button>
+        <AddHabitDialog onHabitAdded={loadHabits} />
       </div>
 
       {/* Stats Cards */}
@@ -148,7 +176,9 @@ export default function DisciplinePage() {
             </div>
             <div className="text-center md:text-left">
               <p className="text-xs md:text-sm font-medium leading-none">Completion Rate</p>
-              <p className="text-lg md:text-2xl font-bold">{Math.round((completedToday / totalHabits) * 100)}%</p>
+              <p className="text-lg md:text-2xl font-bold">
+                {totalHabits > 0 ? Math.round((completedToday / totalHabits) * 100) : 0}%
+              </p>
             </div>
           </CardContent>
         </Card>

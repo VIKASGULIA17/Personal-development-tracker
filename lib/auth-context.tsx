@@ -42,7 +42,8 @@ export const AuthProvider = ({ children }) => {
       setUser(session?.user ?? null)
     })
 
-    return () => subscription.unsubscribe()
+    return () => subscription?.unsubscribe?.()
+
   }, [])
 
   const signIn = async (email, password) => {

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { MessageSquare, Plus, Calendar, Star, TrendingUp, BookOpen } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -8,51 +8,45 @@ import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Textarea } from "@/components/ui/textarea"
 import { useToast } from "@/hooks/use-toast"
+import { useAuth } from "@/lib/auth-context"
+import { getReviews, createReview } from "@/lib/db"
 
 export default function ReviewsPage() {
   const { toast } = useToast()
-  const [reviews, setReviews] = useState([
-    {
-      id: 1,
-      type: "daily",
-      date: new Date().toISOString().split("T")[0],
-      content:
-        "Great progress today! Completed all my planned tasks and had a productive coding session. Need to work on better time management for tomorrow.",
-      rating: 4,
-      highlights: ["Completed React project", "Good focus time", "Healthy meals"],
-      improvements: ["Better sleep schedule", "More water intake"],
-    },
-    {
-      id: 2,
-      type: "weekly",
-      date: "2024-01-08",
-      content:
-        "This week was challenging but rewarding. Made significant progress on personal projects and maintained good exercise habits. Social life needs more attention.",
-      rating: 4,
-      highlights: ["Consistent exercise", "Project milestones", "Learning new skills"],
-      improvements: ["Social connections", "Work-life balance", "Stress management"],
-    },
-    {
-      id: 3,
-      type: "monthly",
-      date: "2024-01-01",
-      content:
-        "January was a month of building new habits and setting strong foundations. Successfully established morning routines and improved productivity systems.",
-      rating: 5,
-      highlights: ["New habits formed", "Productivity systems", "Health improvements"],
-      improvements: ["Financial planning", "Skill development", "Networking"],
-    },
-  ])
+  const { user } = useAuth()
+  const [reviews, setReviews] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
 
   const [newReview, setNewReview] = useState({
     type: "daily",
     content: "",
-    rating: 3,
-    highlights: [],
-    improvements: [],
+    mood: 3,
   })
 
-  const addReview = () => {
+  useEffect(() => {
+    if (user?.id) {
+      fetchReviews()
+    }
+  }, [user])
+
+  const fetchReviews = async () => {
+    if (!user?.id) return
+
+    try {
+      setLoading(true)
+      setError(null)
+      const data = await getReviews(user.id)
+      setReviews(data)
+    } catch (err) {
+      setError("Failed to fetch reviews")
+      console.error("Error fetching reviews:", err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const addReview = async () => {
     if (!newReview.content.trim()) {
       toast({
         title: "Review Required",
@@ -62,29 +56,39 @@ export default function ReviewsPage() {
       return
     }
 
-    const review = {
-      id: reviews.length + 1,
-      ...newReview,
-      date: new Date().toISOString().split("T")[0],
+    if (!user?.id) return
+
+    try {
+      const reviewData = {
+        user_id: user.id,
+        type: newReview.type,
+        content: newReview.content,
+        mood: newReview.mood,
+        date: new Date().toISOString().split("T")[0],
+      }
+
+      const createdReview = await createReview(reviewData)
+      if (createdReview) {
+        setReviews([createdReview, ...reviews])
+        setNewReview({
+          type: "daily",
+          content: "",
+          mood: 3,
+        })
+
+        toast({
+          title: "Review Added!",
+          description: "Your reflection has been saved successfully",
+        })
+      }
+    } catch (err) {
+      setError("Failed to create review")
+      console.error("Error creating review:", err)
     }
-
-    setReviews([review, ...reviews])
-    setNewReview({
-      type: "daily",
-      content: "",
-      rating: 3,
-      highlights: [],
-      improvements: [],
-    })
-
-    toast({
-      title: "Review Added!",
-      description: "Your reflection has been saved successfully",
-    })
   }
 
   const updateRating = (rating) => {
-    setNewReview({ ...newReview, rating })
+    setNewReview({ ...newReview, mood: rating })
   }
 
   const getTypeColor = (type) => {
@@ -114,7 +118,7 @@ export default function ReviewsPage() {
   }
 
   const averageRating =
-    reviews.length > 0 ? (reviews.reduce((acc, r) => acc + r.rating, 0) / reviews.length).toFixed(1) : 0
+    reviews.length > 0 ? (reviews.reduce((acc, r) => acc + (r.mood || 3), 0) / reviews.length).toFixed(1) : 0
 
   const thisWeekReviews = reviews.filter((r) => {
     const reviewDate = new Date(r.date)
@@ -122,6 +126,26 @@ export default function ReviewsPage() {
     weekAgo.setDate(weekAgo.getDate() - 7)
     return reviewDate >= weekAgo
   }).length
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    )
+  }
+
+  if (!user) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Card className="p-6">
+          <div className="text-center">
+            <p className="text-lg font-semibold">Please log in to view your reviews</p>
+          </div>
+        </Card>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-4 md:space-y-6">
@@ -131,11 +155,18 @@ export default function ReviewsPage() {
           <h1 className="text-2xl md:text-3xl font-bold">Reviews & Reflections</h1>
           <p className="text-sm md:text-base text-muted-foreground">Reflect on your progress and plan improvements</p>
         </div>
-        <Button onClick={() => {}} className="w-full md:w-auto">
-          <Plus className="mr-2 h-4 w-4" />
-          Quick Review
-        </Button>
       </div>
+
+      {error && (
+        <Card className="border-red-200 bg-red-50">
+          <CardContent className="p-4">
+            <div className="text-red-600">
+              <p className="font-semibold">Error</p>
+              <p>{error}</p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Stats Cards */}
       <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
@@ -237,7 +268,7 @@ export default function ReviewsPage() {
                     <Button key={rating} variant="ghost" size="sm" onClick={() => updateRating(rating)} className="p-1">
                       <Star
                         className={`h-6 w-6 ${
-                          rating <= newReview.rating ? "fill-yellow-400 text-yellow-400" : "text-gray-300"
+                          rating <= newReview.mood ? "fill-yellow-400 text-yellow-400" : "text-gray-300"
                         }`}
                       />
                     </Button>
@@ -263,188 +294,55 @@ export default function ReviewsPage() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="daily" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg md:text-xl">Daily Reviews</CardTitle>
-              <CardDescription className="text-sm">Your daily reflections and progress</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3 md:space-y-4">
-                {reviews
-                  .filter((r) => r.type === "daily")
-                  .map((review) => (
-                    <div key={review.id} className="p-3 md:p-4 border rounded-lg space-y-3">
-                      <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-4">
-                        <div className="flex items-center gap-2">
-                          {getTypeIcon(review.type)}
-                          <span className="text-sm font-medium">{review.date}</span>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          {[1, 2, 3, 4, 5].map((star) => (
-                            <Star
-                              key={star}
-                              className={`h-4 w-4 ${
-                                star <= review.rating ? "fill-yellow-400 text-yellow-400" : "text-gray-300"
-                              }`}
-                            />
-                          ))}
-                        </div>
-                        <Badge variant="outline" className={`${getTypeColor(review.type)} text-white text-xs`}>
-                          {review.type}
-                        </Badge>
-                      </div>
-
-                      <p className="text-sm text-muted-foreground">{review.content}</p>
-
-                      {review.highlights && review.highlights.length > 0 && (
-                        <div>
-                          <h4 className="text-sm font-medium mb-2">Highlights:</h4>
-                          <div className="flex flex-wrap gap-1">
-                            {review.highlights.map((highlight, index) => (
-                              <Badge key={index} variant="secondary" className="text-xs">
-                                {highlight}
-                              </Badge>
+        {["daily", "weekly", "monthly"].map((tabType) => (
+          <TabsContent key={tabType} value={tabType} className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg md:text-xl capitalize">{tabType} Reviews</CardTitle>
+                <CardDescription className="text-sm">Your {tabType} reflections and progress</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3 md:space-y-4">
+                  {reviews
+                    .filter((r) => r.type === tabType)
+                    .map((review) => (
+                      <div key={review.id} className="p-3 md:p-4 border rounded-lg space-y-3">
+                        <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-4">
+                          <div className="flex items-center gap-2">
+                            {getTypeIcon(review.type)}
+                            <span className="text-sm font-medium">{review.date}</span>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            {[1, 2, 3, 4, 5].map((star) => (
+                              <Star
+                                key={star}
+                                className={`h-4 w-4 ${
+                                  star <= (review.mood || 3) ? "fill-yellow-400 text-yellow-400" : "text-gray-300"
+                                }`}
+                              />
                             ))}
                           </div>
+                          <Badge variant="outline" className={`${getTypeColor(review.type)} text-white text-xs`}>
+                            {review.type}
+                          </Badge>
                         </div>
-                      )}
-                    </div>
-                  ))}
 
-                {reviews.filter((r) => r.type === "daily").length === 0 && (
-                  <div className="text-center py-8">
-                    <p className="text-muted-foreground">
-                      No daily reviews yet. Start reflecting on your daily progress!
-                    </p>
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="weekly" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg md:text-xl">Weekly Reviews</CardTitle>
-              <CardDescription className="text-sm">Your weekly reflections and insights</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3 md:space-y-4">
-                {reviews
-                  .filter((r) => r.type === "weekly")
-                  .map((review) => (
-                    <div key={review.id} className="p-3 md:p-4 border rounded-lg space-y-3">
-                      <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-4">
-                        <div className="flex items-center gap-2">
-                          {getTypeIcon(review.type)}
-                          <span className="text-sm font-medium">Week of {review.date}</span>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          {[1, 2, 3, 4, 5].map((star) => (
-                            <Star
-                              key={star}
-                              className={`h-4 w-4 ${
-                                star <= review.rating ? "fill-yellow-400 text-yellow-400" : "text-gray-300"
-                              }`}
-                            />
-                          ))}
-                        </div>
-                        <Badge variant="outline" className={`${getTypeColor(review.type)} text-white text-xs`}>
-                          {review.type}
-                        </Badge>
+                        <p className="text-sm text-muted-foreground">{review.content}</p>
                       </div>
+                    ))}
 
-                      <p className="text-sm text-muted-foreground">{review.content}</p>
-
-                      {review.highlights && review.highlights.length > 0 && (
-                        <div>
-                          <h4 className="text-sm font-medium mb-2">Highlights:</h4>
-                          <div className="flex flex-wrap gap-1">
-                            {review.highlights.map((highlight, index) => (
-                              <Badge key={index} variant="secondary" className="text-xs">
-                                {highlight}
-                              </Badge>
-                            ))}
-                          </div>
-                        </div>
-                      )}
+                  {reviews.filter((r) => r.type === tabType).length === 0 && (
+                    <div className="text-center py-8">
+                      <p className="text-muted-foreground">
+                        No {tabType} reviews yet. Start reflecting on your {tabType} progress!
+                      </p>
                     </div>
-                  ))}
-
-                {reviews.filter((r) => r.type === "weekly").length === 0 && (
-                  <div className="text-center py-8">
-                    <p className="text-muted-foreground">No weekly reviews yet. Reflect on your weekly progress!</p>
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="monthly" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg md:text-xl">Monthly Reviews</CardTitle>
-              <CardDescription className="text-sm">Your monthly reflections and major insights</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3 md:space-y-4">
-                {reviews
-                  .filter((r) => r.type === "monthly")
-                  .map((review) => (
-                    <div key={review.id} className="p-3 md:p-4 border rounded-lg space-y-3">
-                      <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-4">
-                        <div className="flex items-center gap-2">
-                          {getTypeIcon(review.type)}
-                          <span className="text-sm font-medium">
-                            {new Date(review.date).toLocaleDateString("en-US", { month: "long", year: "numeric" })}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          {[1, 2, 3, 4, 5].map((star) => (
-                            <Star
-                              key={star}
-                              className={`h-4 w-4 ${
-                                star <= review.rating ? "fill-yellow-400 text-yellow-400" : "text-gray-300"
-                              }`}
-                            />
-                          ))}
-                        </div>
-                        <Badge variant="outline" className={`${getTypeColor(review.type)} text-white text-xs`}>
-                          {review.type}
-                        </Badge>
-                      </div>
-
-                      <p className="text-sm text-muted-foreground">{review.content}</p>
-
-                      {review.highlights && review.highlights.length > 0 && (
-                        <div>
-                          <h4 className="text-sm font-medium mb-2">Major Achievements:</h4>
-                          <div className="flex flex-wrap gap-1">
-                            {review.highlights.map((highlight, index) => (
-                              <Badge key={index} variant="secondary" className="text-xs">
-                                {highlight}
-                              </Badge>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  ))}
-
-                {reviews.filter((r) => r.type === "monthly").length === 0 && (
-                  <div className="text-center py-8">
-                    <p className="text-muted-foreground">
-                      No monthly reviews yet. Reflect on your monthly achievements!
-                    </p>
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        ))}
       </Tabs>
     </div>
   )
