@@ -11,6 +11,7 @@ import { getExercises, getTasks, getProjects, getTimeSessions, getMoodEntries, g
 
 
 export default function Dashboard() {
+  
   const { user } = useAuth()
   const [dashboardData, setDashboardData] = useState({
     skillsProgress: 0,

@@ -5,6 +5,11 @@
 body {
   font-family: Arial, Helvetica, sans-serif;
 }
+input:focus {
+  outline: none;
+  box-shadow: none;
+  border-color: transparent; /* or your custom border */
+}
 
 @layer utilities {
   .text-balance {

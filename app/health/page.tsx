@@ -242,7 +242,7 @@ export default function HealthPage() {
 
       {/* Health Tracking */}
       <Tabs defaultValue="today" className="w-full">
-        <TabsList className="grid w-full grid-cols-2 md:grid-cols-4">
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="today" className="text-xs md:text-sm">
             Today
           </TabsTrigger>
@@ -320,7 +320,7 @@ export default function HealthPage() {
                           size="sm" 
                           onClick={() => updateMetric(metric.id, true)} 
                           disabled={updating}
-                          className="text-xs"
+                          className="text-xs ml-36 md:m-auto"
                         >
                           +
                         </Button>

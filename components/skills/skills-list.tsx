@@ -5,25 +5,25 @@ import { Edit, MoreHorizontal, Trash } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Badge } from "@/components/ui/badge"
 import { useToast } from "@/hooks/use-toast"
 import { getSkills, deleteSkill, updateSkill } from "@/lib/db"
 import { supabase } from "@/lib/supabase"
 import { Skeleton } from "@/components/ui/skeleton"
+import EditSkillDialog from "./edit-skills"
 
-export default function SkillsList() {
+export default function SkillsList({ searchTerm = "" }) {
   const [activeTab, setActiveTab] = useState("all")
   const [skills, setSkills] = useState([])
   const [loading, setLoading] = useState(true)
   const { toast } = useToast()
+  const [editingSkill, setEditingSkill] = useState(null)
+  const [editDialogOpen, setEditDialogOpen] = useState(false)
 
   useEffect(() => {
+    let subscription = null
+
     async function loadSkills() {
       try {
         const {
@@ -47,32 +47,39 @@ export default function SkillsList() {
       }
     }
 
-    loadSkills()
+    async function setupSubscription() {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession()
 
-    const subscription = supabase
-      .channel("skills_changes")
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "skills",
-        },
-        async () => {
-          const {
-            data: { session },
-          } = await supabase.auth.getSession()
-          const userId = session?.user?.id
-          if (userId) {
-            const skillsData = await getSkills(userId)
-            setSkills(skillsData)
-          }
-        }
-      )
-      .subscribe()
+      const userId = session?.user?.id
+      if (userId) {
+        subscription = supabase
+          .channel(`skills_changes_${userId}`)
+          .on(
+            "postgres_changes",
+            {
+              event: "*",
+              schema: "public",
+              table: "skills",
+              filter: `user_id=eq.${userId}`,
+            },
+            async () => {
+              const skillsData = await getSkills(userId)
+              setSkills(skillsData)
+            },
+          )
+          .subscribe()
+      }
+    }
+
+    loadSkills()
+    setupSubscription()
 
     return () => {
-      subscription.unsubscribe()
+      if (subscription) {
+        subscription.unsubscribe()
+      }
     }
   }, [toast])
 
@@ -112,8 +119,22 @@ export default function SkillsList() {
 
   const getSkillStatus = (progress) => (progress === 100 ? "completed" : "in-progress")
 
+  // Add search filtering
+  const searchFilteredSkills = skills.filter(
+    (skill) =>
+      skill.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      skill.category.toLowerCase().includes(searchTerm.toLowerCase()),
+  )
+
   const filteredSkills =
-    activeTab === "all" ? skills : skills.filter((skill) => getSkillStatus(skill.progress) === activeTab)
+    activeTab === "all"
+      ? searchFilteredSkills
+      : searchFilteredSkills.filter((skill) => getSkillStatus(skill.progress) === activeTab)
+
+  const handleEditSkill = (skill) => {
+    setEditingSkill(skill)
+    setEditDialogOpen(true)
+  }
 
   if (loading) return <SkillsListSkeleton />
 
@@ -140,36 +161,38 @@ export default function SkillsList() {
               skills={filteredSkills}
               onDelete={handleDeleteSkill}
               onUpdateProgress={handleUpdateProgress}
+              onEdit={handleEditSkill}
             />
           )}
         </TabsContent>
       ))}
+      <EditSkillDialog skill={editingSkill} open={editDialogOpen} onOpenChange={setEditDialogOpen} />
     </Tabs>
   )
 }
 
-function SkillTable({ skills, onDelete, onUpdateProgress }) {
+function SkillTable({ skills, onDelete, onUpdateProgress, onEdit }) {
   return (
     <div className="rounded-md border">
-      <div className="grid grid-cols-6 gap-4 p-4 font-medium border-b">
+      <div className="grid grid-cols-5 md:grid-col-6 lg:grid-cols-6 gap-1 px-6 py-3 font-medium border-b">
         <div className="col-span-2">Skill</div>
-        <div className="col-span-2 hidden md:block">Progress</div>
-        <div className="hidden md:block">Last Updated</div>
-        <div className="text-right">Actions</div>
+        <div className="col-span-2 md:block">Progress</div>
+        <div className="hidden md:block">Target Date</div>
+        <div className="text-right ">Actions</div>
       </div>
       {skills.map((skill) => (
-        <div key={skill.id} className="grid grid-cols-6 gap-4 p-4 items-center border-b last:border-0">
+        <div key={skill.id} className="grid grid-cols-5  md:grid-cols-6 gap-4 p-4 items-center border-b last:border-0">
           <div className="col-span-2">
             <div className="font-medium">{skill.name}</div>
             <div className="text-xs text-muted-foreground mt-1">
               <Badge variant="outline">{skill.category}</Badge>
             </div>
           </div>
-          <div className="col-span-2 hidden md:block">
+          <div className="col-span-2 md:block">
             <div className="flex items-center gap-2">
               <Progress
                 value={skill.progress}
-                className="h-2 cursor-pointer"
+                className="h-2 w-4 lg:w-48 cursor-pointer"
                 onClick={() => {
                   const newProgress = skill.progress >= 100 ? 0 : skill.progress + 10
                   onUpdateProgress(skill.id, newProgress)
@@ -179,7 +202,7 @@ function SkillTable({ skills, onDelete, onUpdateProgress }) {
             </div>
           </div>
           <div className="hidden md:block text-sm text-muted-foreground">
-            {new Date(skill.updated_at).toLocaleDateString()}
+            {skill.target_date ? new Date(skill.target_date).toLocaleDateString() : "No target"}
           </div>
           <div className="text-right">
             <DropdownMenu>
@@ -190,7 +213,7 @@ function SkillTable({ skills, onDelete, onUpdateProgress }) {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuItem>
+                <DropdownMenuItem onClick={() => onEdit(skill)}>
                   <Edit className="mr-2 h-4 w-4" />
                   Edit
                 </DropdownMenuItem>

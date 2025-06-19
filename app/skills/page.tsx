@@ -4,6 +4,7 @@ import { Input } from "@/components/ui/input"
 import AddSkillButton from "@/components/skills/add-skill-button"
 import SkillsList from "@/components/skills/skills-list"
 
+
 export default function SkillsPage() {
   return (
     <div className="space-y-6">

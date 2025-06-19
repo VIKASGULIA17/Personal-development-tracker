@@ -135,17 +135,6 @@ export default function ReviewsPage() {
     )
   }
 
-  if (!user) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <Card className="p-6">
-          <div className="text-center">
-            <p className="text-lg font-semibold">Please log in to view your reviews</p>
-          </div>
-        </Card>
-      </div>
-    )
-  }
 
   return (
     <div className="space-y-4 md:space-y-6">
@@ -276,7 +265,7 @@ export default function ReviewsPage() {
                 </div>
               </div>
 
-              <div className="space-y-2">
+              <div className="space-y-2 capitalize">
                 <label className="text-sm font-medium">Your Reflection</label>
                 <Textarea
                   placeholder="How did today/this week/this month go? What did you learn? What would you do differently?"

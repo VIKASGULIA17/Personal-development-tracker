@@ -201,7 +201,7 @@ export default function DisciplinePage() {
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="all" className="space-y-4">
+        <TabsContent value="all" className="space-y-4 capitalize">
           <Card>
             <CardHeader>
               <CardTitle className="text-lg md:text-xl">Today's Habits</CardTitle>

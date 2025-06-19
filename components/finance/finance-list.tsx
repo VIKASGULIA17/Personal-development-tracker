@@ -9,6 +9,7 @@ import { getFinanceEntries, deleteFinanceEntry } from "@/lib/db"
 import { useAuth } from "@/lib/auth-context"
 import { Skeleton } from "@/components/ui/skeleton"
 import { supabase } from "@/lib/supabase"
+import EditFinanceDialog from "./edit-finance" // ✅ Import the dialog
 
 interface FinanceListProps {
   type?: string
@@ -18,6 +19,8 @@ interface FinanceListProps {
 export default function FinanceList({ type, searchQuery = "" }: FinanceListProps) {
   const [entries, setEntries] = useState([])
   const [loading, setLoading] = useState(true)
+  const [editDialogOpen, setEditDialogOpen] = useState(false) // ✅ Dialog open state
+  const [selectedEntry, setSelectedEntry] = useState(null) // ✅ Currently editing entry
   const { toast } = useToast()
   const { user } = useAuth()
 
@@ -30,14 +33,14 @@ export default function FinanceList({ type, searchQuery = "" }: FinanceListProps
         let filteredData = data
 
         if (type) {
-          filteredData = data.filter((entry) => entry.type === type)
+          filteredData = filteredData.filter((entry) => entry.type === type)
         }
 
         if (searchQuery) {
           filteredData = filteredData.filter(
             (entry) =>
               entry.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-              entry.category?.toLowerCase().includes(searchQuery.toLowerCase()),
+              entry.category?.toLowerCase().includes(searchQuery.toLowerCase())
           )
         }
 
@@ -56,7 +59,6 @@ export default function FinanceList({ type, searchQuery = "" }: FinanceListProps
 
     loadEntries()
 
-    // Subscribe to changes
     const subscription = supabase
       .channel("finance_changes")
       .on(
@@ -68,7 +70,7 @@ export default function FinanceList({ type, searchQuery = "" }: FinanceListProps
         },
         () => {
           loadEntries()
-        },
+        }
       )
       .subscribe()
 
@@ -94,6 +96,11 @@ export default function FinanceList({ type, searchQuery = "" }: FinanceListProps
     }
   }
 
+  const handleEdit = (entry) => {
+    setSelectedEntry(entry)
+    setEditDialogOpen(true)
+  }
+
   const getIcon = (type: string) => {
     switch (type) {
       case "income":
@@ -104,19 +111,6 @@ export default function FinanceList({ type, searchQuery = "" }: FinanceListProps
         return <PiggyBank className="h-4 w-4 text-blue-500" />
       default:
         return <TrendingUp className="h-4 w-4" />
-    }
-  }
-
-  const getTypeColor = (type: string) => {
-    switch (type) {
-      case "income":
-        return "bg-green-500"
-      case "expense":
-        return "bg-red-500"
-      case "investment":
-        return "bg-blue-500"
-      default:
-        return "bg-gray-500"
     }
   }
 
@@ -167,60 +161,69 @@ export default function FinanceList({ type, searchQuery = "" }: FinanceListProps
   }
 
   return (
-    <div className="rounded-md border">
-      <div className="grid grid-cols-6 gap-4 p-4 font-medium border-b">
-        <div className="col-span-2">Transaction</div>
-        <div className="hidden md:block">Category</div>
-        <div className="hidden md:block">Amount</div>
-        <div className="hidden md:block">Date</div>
-        <div className="text-right">Actions</div>
-      </div>
-      {entries.map((entry) => (
-        <div key={entry.id} className="grid grid-cols-6 gap-4 p-4 items-center border-b last:border-0">
-          <div className="col-span-2">
-            <div className="flex items-center gap-2">
-              {getIcon(entry.type)}
-              <div>
-                <div className="font-medium">{entry.description || "Transaction"}</div>
-                <div className="text-xs text-muted-foreground capitalize">{entry.type}</div>
+    <>
+      <div className="rounded-md border">
+        <div className="grid grid-cols-4 lg:grid-cols-6 gap-4 p-4 font-medium border-b">
+          <div className="col-span-2">Transaction</div>
+          <div className="hidden md:block">Category</div>
+          <div className="text-center">Amount</div>
+          <div className="hidden md:block">Date</div>
+          <div className="text-right">Actions</div>
+        </div>
+        {entries.map((entry) => (
+          <div key={entry.id} className="grid grid-cols-4 md:grid-cols-6 gap-4 p-4 items-center border-b last:border-0">
+            <div className="col-span-2">
+              <div className="flex items-center gap-2">
+                {getIcon(entry.type)}
+                <div>
+                  <div className="font-medium">{entry.description || "Transaction"}</div>
+                  <div className="text-xs text-muted-foreground capitalize">{entry.type}</div>
+                </div>
               </div>
             </div>
+            <div className="hidden md:block text-sm text-muted-foreground capitalize">{entry.category}</div>
+            <div className="md:block">
+              <span
+                className={`font-medium ${
+                  entry.type === "income" ? "text-green-600" : entry.type === "expense" ? "text-red-600" : "text-blue-600"
+                }`}
+              >
+                ${Number.parseFloat(entry.amount).toLocaleString()}
+              </span>
+            </div>
+            <div className="hidden md:block text-sm text-muted-foreground">
+              {new Date(entry.date).toLocaleDateString()}
+            </div>
+            <div className="text-right">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon">
+                    <MoreHorizontal className="h-4 w-4" />
+                    <span className="sr-only">Actions</span>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => handleEdit(entry)}>
+                    <Edit className="mr-2 h-4 w-4" />
+                    Edit
+                  </DropdownMenuItem>
+                  <DropdownMenuItem className="text-red-600" onClick={() => handleDelete(entry.id)}>
+                    <Trash className="mr-2 h-4 w-4" />
+                    Delete
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           </div>
-          <div className="hidden md:block text-sm text-muted-foreground">{entry.category}</div>
-          <div className="hidden md:block">
-            <span
-              className={`font-medium ${
-                entry.type === "income" ? "text-green-600" : entry.type === "expense" ? "text-red-600" : "text-blue-600"
-              }`}
-            >
-              ${Number.parseFloat(entry.amount).toLocaleString()}
-            </span>
-          </div>
-          <div className="hidden md:block text-sm text-muted-foreground">
-            {new Date(entry.date).toLocaleDateString()}
-          </div>
-          <div className="text-right">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon">
-                  <MoreHorizontal className="h-4 w-4" />
-                  <span className="sr-only">Actions</span>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem>
-                  <Edit className="mr-2 h-4 w-4" />
-                  Edit
-                </DropdownMenuItem>
-                <DropdownMenuItem className="text-red-600" onClick={() => handleDelete(entry.id)}>
-                  <Trash className="mr-2 h-4 w-4" />
-                  Delete
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-        </div>
-      ))}
-    </div>
+        ))}
+      </div>
+
+      {/* ✅ Edit Dialog Hooked In */}
+      <EditFinanceDialog
+        entry={selectedEntry}
+        open={editDialogOpen}
+        onOpenChange={setEditDialogOpen}
+      />
+    </>
   )
 }

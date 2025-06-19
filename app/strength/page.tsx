@@ -58,14 +58,13 @@ export default function ExercisePage() {
     date: new Date().toISOString().split("T")[0],
   })
 
-  // Auto-login on component mount if not authenticated
   useEffect(() => {
     const total = exercises.reduce((acc, curr) => acc + curr.sets, 0)
     setTotalsets(total)
   }, [exercises])
 
   useEffect(() => {
-    const total = exercises.reduce((acc, curr) =>acc+1, 0)
+    const total = exercises.reduce((acc) =>acc+1, 0)
     setTotalExercise(total)
   }, [exercises])
 
@@ -242,15 +241,15 @@ useEffect(() => {
 
   return (
     <div className="container mx-auto px-4 py-8 max-w-6xl">
-      <div className="flex justify-between items-center mb-8">
+      <div className="flex flex-col lg:flex-row md:justify-between items-center mb-4">
         <div>
           <h1 className="text-2xl md:text-3xl font-bold">Strength Training</h1>
           <p className="text-sm md:text-base text-muted-foreground">Track your workouts and build strength</p>
         </div>
-        <div className="flex space-x-2">
+        <div className="flex space-x-2 mt-6 lg:mt-auto">
           <Dialog open={isAddModalOpen} onOpenChange={setIsAddModalOpen}>
             <DialogTrigger asChild>
-              <Button className="bg-blue-600 hover:bg-blue-700">
+              <Button className="bg-black hover:bg-zinc-700">
                 <Plus className="w-4 h-4 mr-2" />
                 Add Exercise
               </Button>
@@ -259,7 +258,7 @@ useEffect(() => {
               <DialogHeader>
                 <DialogTitle>Add New Exercise</DialogTitle>
               </DialogHeader>
-              <form onSubmit={handleAddExercise} className="space-y-4">
+              <form onSubmit={handleAddExercise} className="space-y-2 ">
                 <div>
                   <Label htmlFor="exercise">Exercise Name</Label>
                   <Input
@@ -458,7 +457,7 @@ useEffect(() => {
                             handleInlineEdit(exercise.id, "exercise", e.currentTarget.value)
                           }
                         }}
-                        className="text-lg font-semibold"
+                        className="text-lg font-semibold focus:outline-none"
                         autoFocus
                       />
                     ) : (

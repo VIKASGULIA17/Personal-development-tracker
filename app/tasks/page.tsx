@@ -493,70 +493,84 @@ export default function TasksPage() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    {filterTasks(tabValue).map((task) => (
-                      <div
-                        key={task.id}
-                        className={`flex items-center gap-4 p-4 border rounded-lg ${
-                          task.status === "completed" ? "opacity-60" : ""
-                        }`}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={task.status === "completed"}
-                          onChange={() => handleToggleTask(task.id)}
-                          className="w-4 h-4 rounded border-gray-300"
-                        />
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-1">
-                            <h3 className={`font-medium ${task.status === "completed" ? "line-through" : ""}`}>
-                              {task.title}
-                            </h3>
-                            <Badge variant={getPriorityColor(task.priority)} className="text-xs">
-                              {task.priority}
-                            </Badge>
-                            {task.projects?.name && (
-                              <Badge variant="outline" className="text-xs">
-                                {task.projects.name}
-                              </Badge>
-                            )}
-                          </div>
-                          {task.description && <p className="text-sm text-muted-foreground">{task.description}</p>}
-                          <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
-                            {task.due_date && (
-                              <div className="flex items-center gap-1">
-                                <Calendar className="h-3 w-3" />
-                                <span className={isOverdue(task.due_date) ? "text-red-500" : ""}>
-                                  {new Date(task.due_date).toLocaleDateString()}
-                                </span>
-                              </div>
-                            )}
-                            {task.estimated_time && (
-                              <div className="flex items-center gap-1">
-                                <Clock className="h-3 w-3" />
-                                <span>{task.estimated_time}m</span>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Badge variant="outline" className={`${getStatusColor(task.status)} text-white`}>
-                            {task.status.replace("_", " ")}
-                          </Badge>
-                          <Button variant="ghost" size="sm" onClick={() => openEditModal(task)}>
-                            <Edit2 className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleDeleteTask(task.id)}
-                            className="text-red-600 hover:text-red-700"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+  {filterTasks(tabValue).map((task) => (
+    <div
+      key={task.id}
+      className={`p-4 border rounded-lg bg-white dark:bg-background shadow-sm space-y-3 ${
+        task.status === "completed" ? "opacity-70" : ""
+      }`}
+    >
+      {/* Top Row: Title + Priority + Project */}
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
+        <div className="flex items-start gap-3">
+          <input
+            type="checkbox"
+            checked={task.status === "completed"}
+            onChange={() => handleToggleTask(task.id)}
+            className="w-4 h-4 mt-1 accent-blue-600"
+          />
+          <div className="space-y-1">
+            <h3 className={`font-medium text-base ${task.status === "completed" ? "line-through" : ""}`}>
+              {task.title}
+            </h3>
+            {task.description && (
+              <p className="text-sm text-muted-foreground line-clamp-2">{task.description}</p>
+            )}
+          </div>
+        </div>
+        <div className="flex flex-wrap gap-2 md:justify-end">
+          <Badge variant={getPriorityColor(task.priority)} className="text-xs capitalize">
+            {task.priority}
+          </Badge>
+          {task.projects?.name && (
+            <Badge variant="outline" className="text-xs">
+              {task.projects.name}
+            </Badge>
+          )}
+        </div>
+      </div>
+
+      {/* Bottom Row: Meta info */}
+      <div className="flex flex-wrap items-center justify-between gap-4 text-xs text-muted-foreground">
+        <div className="flex gap-4">
+          {task.due_date && (
+            <div className="flex items-center gap-1">
+              <Calendar className="h-3 w-3" />
+              <span className={isOverdue(task.due_date) ? "text-red-500 font-medium" : ""}>
+                {new Date(task.due_date).toLocaleDateString()}
+              </span>
+            </div>
+          )}
+          {task.estimated_time && (
+            <div className="flex items-center gap-1">
+              <Clock className="h-3 w-3" />
+              <span>{task.estimated_time}m</span>
+            </div>
+          )}
+        </div>
+
+        {/* Status + Actions */}
+        <div className="flex items-center gap-2">
+          <Badge variant="outline" className={`${getStatusColor(task.status)} text-white text-xs`}>
+            {task.status.replace("_", " ")}
+          </Badge>
+          <Button variant="ghost" size="sm" onClick={() => openEditModal(task)}>
+            <Edit2 className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => handleDeleteTask(task.id)}
+            className="text-red-600 hover:text-red-700"
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
+    </div>
+  ))}
+</div>
+
                 </CardContent>
               </Card>
             )}

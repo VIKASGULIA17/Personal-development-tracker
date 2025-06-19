@@ -108,10 +108,8 @@ export default function ProjectsPage() {
         description: projectForm.description || null,
         status: projectForm.status,
         progress: Number(projectForm.progress),
-        due_date: projectForm.due_date || null,
+        deadline: projectForm.deadline || null,
         priority: projectForm.priority,
-        tasks: Number(projectForm.tasks),
-        completed_tasks: Number(projectForm.completed_tasks),
       }
 
       const updatedProject = await updateProject(editingProject.id, updates)
@@ -155,10 +153,8 @@ export default function ProjectsPage() {
       description: project.description || "",
       status: project.status,
       progress: project.progress,
-      due_date: project.due_date || "",
+      deadline: project.deadline || "",
       priority: project.priority,
-      tasks: project.tasks,
-      completed_tasks: project.completed_tasks,
     })
     setEditingProject(project)
   }
@@ -291,28 +287,7 @@ export default function ProjectsPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="tasks">Total Tasks</Label>
-                  <Input
-                    id="tasks"
-                    type="number"
-                    value={projectForm.tasks}
-                    onChange={(e) => setProjectForm((prev) => ({ ...prev, tasks: e.target.value }))}
-                    placeholder="0"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="completed_tasks">Completed Tasks</Label>
-                  <Input
-                    id="completed_tasks"
-                    type="number"
-                    value={projectForm.completed_tasks}
-                    onChange={(e) => setProjectForm((prev) => ({ ...prev, completed_tasks: e.target.value }))}
-                    placeholder="0"
-                  />
-                </div>
-              </div>
+            
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -328,12 +303,12 @@ export default function ProjectsPage() {
                   />
                 </div>
                 <div>
-                  <Label htmlFor="due_date">Due Date</Label>
+                  <Label htmlFor="deadline">Due Date</Label>
                   <Input
-                    id="due_date"
+                    id="deadline"
                     type="date"
-                    value={projectForm.due_date}
-                    onChange={(e) => setProjectForm((prev) => ({ ...prev, due_date: e.target.value }))}
+                    value={projectForm.deadline}
+                    onChange={(e) => setProjectForm((prev) => ({ ...prev, deadline: e.target.value }))}
                   />
                 </div>
               </div>
@@ -424,7 +399,7 @@ export default function ProjectsPage() {
         </TabsList>
 
         {["all", "active", "completed", "planning"].map((tabValue) => (
-          <TabsContent key={tabValue} value={tabValue} className="space-y-4">
+          <TabsContent key={tabValue} value={tabValue} className="space-y-4 capitalize">
             {filterProjects(tabValue).length === 0 ? (
               <Card className="p-8">
                 <div className="text-center text-gray-500">
@@ -472,20 +447,15 @@ export default function ProjectsPage() {
                       </div>
                       <Progress value={project.progress} className="h-2" />
 
-                      <div className="flex items-center justify-between text-sm">
-                        <span>Tasks</span>
-                        <span>
-                          {project.completed_tasks}/{project.tasks}
-                        </span>
-                      </div>
+                      
 
                       <div className="flex items-center justify-between">
                         <Badge variant="outline" className={`${getStatusColor(project.status)} text-white`}>
                           {project.status.replace("_", " ")}
                         </Badge>
-                        {project.due_date && (
+                        {project.deadline && (
                           <span className="text-sm text-muted-foreground">
-                            Due: {new Date(project.due_date).toLocaleDateString()}
+                            Due: {new Date(project.deadline).toLocaleDateString()}
                           </span>
                         )}
                       </div>
@@ -562,28 +532,7 @@ export default function ProjectsPage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="edit-tasks">Total Tasks</Label>
-                <Input
-                  id="edit-tasks"
-                  type="number"
-                  value={projectForm.tasks}
-                  onChange={(e) => setProjectForm((prev) => ({ ...prev, tasks: e.target.value }))}
-                  placeholder="0"
-                />
-              </div>
-              <div>
-                <Label htmlFor="edit-completed-tasks">Completed Tasks</Label>
-                <Input
-                  id="edit-completed-tasks"
-                  type="number"
-                  value={projectForm.completed_tasks}
-                  onChange={(e) => setProjectForm((prev) => ({ ...prev, completed_tasks: e.target.value }))}
-                  placeholder="0"
-                />
-              </div>
-            </div>
+            
 
             <div className="grid grid-cols-2 gap-4">
               <div>
@@ -603,8 +552,8 @@ export default function ProjectsPage() {
                 <Input
                   id="edit-due-date"
                   type="date"
-                  value={projectForm.due_date}
-                  onChange={(e) => setProjectForm((prev) => ({ ...prev, due_date: e.target.value }))}
+                  value={projectForm.deadline}
+                  onChange={(e) => setProjectForm((prev) => ({ ...prev, deadline: e.target.value }))}
                 />
               </div>
             </div>

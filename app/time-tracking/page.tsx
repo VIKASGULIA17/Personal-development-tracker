@@ -59,7 +59,7 @@ export default function TimeTrackingPage() {
     if (isRunning) {
       interval = setInterval(() => {
         setTime((time) => time + 1)
-      }, 1000)
+      }, 1020)
     } else if (!isRunning && time !== 0) {
       clearInterval(interval)
     }
@@ -255,15 +255,15 @@ export default function TimeTrackingPage() {
           <h1 className="text-2xl md:text-3xl font-bold">Time Tracking</h1>
           <p className="text-sm md:text-base text-muted-foreground">Track your focus time and productivity</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-1">
           <Button onClick={startPomodoro} className="w-full md:w-auto">
-            <Plus className="mr-2 h-4 w-4" />
+            <Plus className="mr-1 h-4 w-4" />
             Start Pomodoro
           </Button>
           <Dialog open={isAddModalOpen} onOpenChange={setIsAddModalOpen}>
             <DialogTrigger asChild>
               <Button variant="outline" className="w-full md:w-auto">
-                <Plus className="mr-2 h-4 w-4" />
+                <Plus className="mr-1 h-4 w-4" />
                 Add Session
               </Button>
             </DialogTrigger>

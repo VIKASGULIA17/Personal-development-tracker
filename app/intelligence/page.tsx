@@ -36,7 +36,7 @@ export default function IntelligencePage() {
       <IntelligenceStats />
 
       <Tabs defaultValue="all" className="w-full">
-        <TabsList className="grid w-full grid-cols-5">
+        <TabsList className="grid w-full grid-cols-5 gap-2">
           <TabsTrigger value="all">All</TabsTrigger>
           <TabsTrigger value="books">Books</TabsTrigger>
           <TabsTrigger value="videos">Videos</TabsTrigger>
