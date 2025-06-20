@@ -48,12 +48,35 @@ export default function DashboardStats() {
         ...discipline.map((d) => d.date),
       ])
 
-      setStats({
-        completedToday,
-        totalGoals,
-        currentStreak:0,
-        activeDays: uniqueDates.size,
-      })
+const activeDates = Array.from(uniqueDates).map(dateStr => new Date(dateStr));
+activeDates.sort((a, b) => b - a); 
+
+let streak = 0;
+let currentDate = new Date();
+currentDate.setHours(0, 0, 0, 0); 
+
+for (let i = 0; i < activeDates.length; i++) {
+  const date = new Date(activeDates[i]);
+  date.setHours(0, 0, 0, 0);
+
+  if (date.getTime() === currentDate.getTime()) {
+    streak++;
+    currentDate.setDate(currentDate.getDate() - 1); // Check previous day
+  } else if (date.getTime() === currentDate.getTime() - 86400000) {
+    streak++;
+    currentDate.setDate(currentDate.getDate() - 1);
+  } else {
+    break;
+  }
+}
+
+setStats({
+  completedToday,
+  totalGoals,
+  currentStreak: streak,
+  activeDays: uniqueDates.size,
+})
+
     } catch (error) {
       console.error("Error loading stats:", error)
     }

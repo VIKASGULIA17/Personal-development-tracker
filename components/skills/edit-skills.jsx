@@ -9,20 +9,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Button } from "@/components/ui/button"
 import { useToast } from "@/hooks/use-toast"
 import { updateSkill } from "@/lib/db"
+import { supabase } from "@/lib/supabase"
+import { useAuth } from "@/lib/auth-context"
 
 const skillCategories = [
-  "Programming",
-  "Design",
-  "Marketing",
-  "Business",
-  "Language",
-  "Music",
-  "Art",
-  "Writing",
-  "Health",
-  "Fitness",
-  "Cooking",
-  "Other",
+  "Programming", "Design", "Marketing", "Business", "Language", "Music",
+  "Art", "Writing", "Health", "Fitness", "Cooking", "Other",
 ]
 
 export default function EditSkillDialog({ skill, open, onOpenChange }) {
@@ -35,6 +27,7 @@ export default function EditSkillDialog({ skill, open, onOpenChange }) {
     target_date: "",
   })
   const { toast } = useToast()
+  const { user } = useAuth()
 
   useEffect(() => {
     if (skill) {
@@ -61,13 +54,30 @@ export default function EditSkillDialog({ skill, open, onOpenChange }) {
 
     setLoading(true)
     try {
+      const newProgress = Number.parseInt(formData.progress) || 0
+      const oldProgress = skill.progress || 0
+      const progressChanged = newProgress !== oldProgress
+
+      // Update the skill
       await updateSkill(skill.id, {
         name: formData.name,
         category: formData.category,
         description: formData.description,
-        progress: Number.parseInt(formData.progress) || 0,
+        progress: newProgress,
         target_date: formData.target_date || null,
       })
+
+      // Log progress change
+      if (progressChanged && user?.id) {
+        const { error: logError } = await supabase.from("skill_progress_log").insert([
+          {
+            user_id: user.id,
+            skill_id: skill.id,
+            progress: newProgress,
+          },
+        ])
+        if (logError) throw logError
+      }
 
       toast({
         title: "Success",
@@ -94,7 +104,7 @@ export default function EditSkillDialog({ skill, open, onOpenChange }) {
           <DialogTitle>Edit Skill</DialogTitle>
           <DialogDescription>Update your skill information and progress.</DialogDescription>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-1 h-[78vh]  md:h-auto">
+        <form onSubmit={handleSubmit} className="space-y-1 h-[78vh] md:h-auto">
           <div className="space-y-1">
             <Label htmlFor="name">Skill Name *</Label>
             <Input
@@ -108,7 +118,10 @@ export default function EditSkillDialog({ skill, open, onOpenChange }) {
 
           <div className="space-y-1">
             <Label htmlFor="category">Category *</Label>
-            <Select value={formData.category} onValueChange={(value) => setFormData({ ...formData, category: value })}>
+            <Select
+              value={formData.category}
+              onValueChange={(value) => setFormData({ ...formData, category: value })}
+            >
               <SelectTrigger>
                 <SelectValue placeholder="Select a category" />
               </SelectTrigger>

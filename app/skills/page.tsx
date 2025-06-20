@@ -1,11 +1,65 @@
+"use client"
+
 import { CheckCircle, Clock, Search, Target } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import AddSkillButton from "@/components/skills/add-skill-button"
 import SkillsList from "@/components/skills/skills-list"
-
+import { useState,useEffect } from "react"
+import { getSkills } from "@/lib/db"
+import { useAuth } from "@/lib/auth-context"
+import { supabase } from "@/lib/supabase"
 
 export default function SkillsPage() {
+  const [skills, setSkills] = useState([])
+  const [totalSkills, setTotalSkills] = useState(0)
+  const [completedSkills, setCompletedSkills] = useState(0)
+  const [inProgressSkills, setInProgressSkills] = useState(0)
+  const [weeklyGoals, setWeeklyGoals] = useState(0)
+  const { user, loading: authLoading } = useAuth()
+
+  useEffect(() => {
+    if (!authLoading && user?.id) {
+      fetchSkills()
+    }
+  }, [authLoading, user])
+
+  const fetchSkills = async () => {
+    try {
+      const data = await getSkills(user.id)
+      setSkills(data)
+
+      setTotalSkills(data.length)
+      setCompletedSkills(data.filter((s) => s.progress === 100).length)
+      setInProgressSkills(data.filter((s) => s.progress > 0 && s.progress < 100).length)
+
+      // 🔄 Fetch weekly progress
+      const now = new Date()
+      const currentWeekStart = new Date(now)
+      currentWeekStart.setDate(now.getDate() - now.getDay())
+      currentWeekStart.setHours(0, 0, 0, 0)
+
+      const { data: progressLogs, error } = await supabase
+        .from("skill_progress_log")
+        .select("progress")
+        .eq("user_id", user.id)
+        .gte("created_at", currentWeekStart.toISOString())
+
+      if (error) throw error
+
+      // 🧠 Calculate average progress increase this week
+      if (progressLogs.length > 0) {
+        const totalProgress = progressLogs.reduce((sum, log) => sum + log.progress, 0)
+        const avgProgress = totalProgress / progressLogs.length
+        setWeeklyGoals(Math.round(avgProgress))
+      } else {
+        setWeeklyGoals(0)
+      }
+    } catch (error) {
+      console.error("Failed to load skills", error)
+    }
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
@@ -30,7 +84,7 @@ export default function SkillsPage() {
             </div>
             <div>
               <p className="text-sm font-medium leading-none">Total Skills</p>
-              <p className="text-2xl font-bold">12</p>
+              <p className="text-2xl font-bold">{totalSkills}</p>
             </div>
           </CardContent>
         </Card>
@@ -42,7 +96,7 @@ export default function SkillsPage() {
             </div>
             <div>
               <p className="text-sm font-medium leading-none">Completed</p>
-              <p className="text-2xl font-bold">3</p>
+              <p className="text-2xl font-bold">{completedSkills}</p>
             </div>
           </CardContent>
         </Card>
@@ -54,7 +108,7 @@ export default function SkillsPage() {
             </div>
             <div>
               <p className="text-sm font-medium leading-none">In Progress</p>
-              <p className="text-2xl font-bold">7</p>
+              <p className="text-2xl font-bold">{inProgressSkills}</p>
             </div>
           </CardContent>
         </Card>
@@ -66,7 +120,7 @@ export default function SkillsPage() {
             </div>
             <div>
               <p className="text-sm font-medium leading-none">Weekly Goal</p>
-              <p className="text-2xl font-bold">60%</p>
+              <p className="text-2xl font-bold">{weeklyGoals}%</p>
             </div>
           </CardContent>
         </Card>

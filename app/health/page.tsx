@@ -167,12 +167,7 @@ export default function HealthPage() {
     }
   }
 
-  const addNewMetric = () => {
-    toast({
-      title: "Add Health Metric",
-      description: "Health metric form would open here",
-    })
-  }
+  
 
   const getIcon = (type) => {
     switch (type) {
@@ -214,10 +209,7 @@ export default function HealthPage() {
           <h1 className="text-2xl md:text-3xl font-bold">Health</h1>
           <p className="text-sm md:text-base text-muted-foreground">Monitor your health metrics and wellness</p>
         </div>
-        <Button onClick={addNewMetric} className="w-full md:w-auto">
-          <Plus className="mr-2 h-4 w-4" />
-          Add Metric
-        </Button>
+        
       </div>
 
       {/* Stats Cards */}
@@ -306,7 +298,7 @@ export default function HealthPage() {
                           </div>
                         </div>
                       </div>
-                      <div className="flex gap-2">
+                      <div className="flex gap-2 justify-between">
                         <Button
                           size="sm"
                           variant="outline"
@@ -320,7 +312,7 @@ export default function HealthPage() {
                           size="sm" 
                           onClick={() => updateMetric(metric.id, true)} 
                           disabled={updating}
-                          className="text-xs ml-36 md:m-auto"
+                          className="text-xs "
                         >
                           +
                         </Button>

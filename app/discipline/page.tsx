@@ -13,7 +13,7 @@ import { getDisciplineEntries, updateDisciplineEntry } from "@/lib/db"
 import AddHabitDialog from "../../components/AddHabitDialogue"
 
 export default function DisciplinePage() {
-  const { toast } = useToast()
+    const { toast } = useToast()
   const { user } = useAuth()
   const [habits, setHabits] = useState([])
   const [loading, setLoading] = useState(true)
@@ -24,44 +24,48 @@ export default function DisciplinePage() {
     }
   }, [user])
 
+  const calculateStreak = (dates) => {
+    const today = new Date()
+    const dateSet = new Set(dates)
+    let streak = 0
+    for (let i = 0; ; i++) {
+      const d = new Date()
+      d.setDate(today.getDate() - i)
+      const dateString = d.toISOString().split("T")[0]
+      if (dateSet.has(dateString)) {
+        streak++
+      } else {
+        break
+      }
+    }
+    return streak
+  }
+
   const loadHabits = async () => {
     try {
       const today = new Date().toISOString().split("T")[0]
       const data = await getDisciplineEntries(user.id)
 
-      // Group habits by name and get today's status
-      const habitMap = new Map()
+      const grouped = data.reduce((acc, entry) => {
+        if (!acc[entry.name]) acc[entry.name] = []
+        acc[entry.name].push(entry)
+        return acc
+      }, {})
 
-      data.forEach((entry) => {
-        const key = entry.name
-        if (!habitMap.has(key)) {
-          habitMap.set(key, {
-            id: entry.id,
-            name: entry.name,
-            description: entry.description,
-            category: entry.type,
-            completed: entry.date === today ? entry.completed : false,
-            streak: 0, // Will calculate below
-            target: 30,
-            lastDate: entry.date,
-          })
-        } else {
-          const existing = habitMap.get(key)
-          if (entry.date === today) {
-            existing.completed = entry.completed
-            existing.id = entry.id // Use today's entry ID for updates
-          }
-          if (entry.date > existing.lastDate) {
-            existing.lastDate = entry.date
-          }
+      const transformedHabits = Object.entries(grouped).map(([name, entries]) => {
+        const completedDates = entries.filter(e => e.completed).map(e => e.date)
+        const todayEntry = entries.find(e => e.date === today)
+
+        return {
+          id: todayEntry?.id || entries[0].id,
+          name,
+          description: entries[0].description,
+          category: entries[0].type,
+          completed: todayEntry?.completed || false,
+          streak: calculateStreak(completedDates),
+          target: 30,
         }
       })
-
-      // Calculate streaks (simplified - in real app, you'd calculate properly)
-      const transformedHabits = Array.from(habitMap.values()).map((habit) => ({
-        ...habit,
-        streak: Math.floor(Math.random() * 15) + 1, // Mock streak for now
-      }))
 
       setHabits(transformedHabits)
     } catch (error) {
@@ -115,7 +119,6 @@ export default function DisciplinePage() {
   if (loading) {
     return <div>Loading...</div>
   }
-
   return (
     <div className="space-y-4 md:space-y-6">
       {/* Header */}

@@ -108,7 +108,15 @@ useEffect(() => {
       setLoading(true)
       setError(null)
       const data = await getExercises(user.id)
-      setExercises(data)
+
+// Get today's date in yyyy-mm-dd format
+const today = new Date().toISOString().split("T")[0]
+
+// Filter only today's exercises
+const todaysExercises = data.filter((ex) => ex.date === today)
+
+setExercises(todaysExercises)
+
     } catch (err) {
       setError("Failed to fetch exercises")
       console.error("Error fetching exercises:", err)
