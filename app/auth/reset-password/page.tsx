@@ -1,43 +1,55 @@
 "use client"
 
-import type React from "react"
-
-import { useState, useEffect } from "react"
+import { useEffect, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
-import { Eye, EyeOff, Loader2 } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { supabase } from "@/lib/supabase"
+import { Input } from "@/components/ui/input"
+import { Button } from "@/components/ui/button"
 import { useToast } from "@/hooks/use-toast"
+import { Eye, EyeOff, Loader2 } from "lucide-react"
+import {
+  Card, CardContent, CardDescription,
+  CardFooter, CardHeader, CardTitle,
+} from "@/components/ui/card"
+import { Label } from "@/components/ui/label"
 
 export default function ResetPasswordPage() {
+  const router = useRouter()
+  const { toast } = useToast()
+  const [loading, setLoading] = useState(true)
+  const [sessionReady, setSessionReady] = useState(false)
+
   const [password, setPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
-  const [loading, setLoading] = useState(false)
-  const router = useRouter()
-  const searchParams = useSearchParams()
-  const { toast } = useToast()
+  const searchParams = useSearchParams();
 
   useEffect(() => {
-  const handleSession = async () => {
+  const verifyRecovery = async () => {
+    const type = searchParams.get("type")
+
+    if (type !== "recovery") {
+      
+      router.push("/auth/login")
+      return
+    }
+
     const { error } = await supabase.auth.exchangeCodeForSession()
 
     if (error) {
-      toast({
-        title: "Error",
-        description: "Invalid or expired reset link.",
-        variant: "destructive",
-      })
+      
       router.push("/auth/login")
+      return
     }
+
+    setSessionReady(true)
+    setLoading(false)
   }
 
-  handleSession()
-}, [router, toast])
+  verifyRecovery()
+}, [router, toast, searchParams])
+
 
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -63,36 +75,40 @@ export default function ResetPasswordPage() {
 
     setLoading(true)
 
-    try {
-      const { error } = await supabase.auth.updateUser({
-        password: password,
-      })
-
-      if (error) throw error
-
-      toast({
-        title: "Success",
-        description: "Your password has been updated successfully.",
-      })
-
-      router.push("/auth/login")
-    } catch (error: any) {
+    const { error } = await supabase.auth.updateUser({ password })
+    if (error) {
       toast({
         title: "Error",
-        description: error.message || "Failed to update password. Please try again.",
+        description: error.message || "Could not update password.",
         variant: "destructive",
       })
-    } finally {
-      setLoading(false)
+    } else {
+      toast({
+        title: "Success",
+        description: "Password updated successfully.",
+      })
+      router.push("/auth/login")
     }
+
+    setLoading(false)
   }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex justify-center items-center">
+        <Loader2 className="h-6 w-6 animate-spin" />
+      </div>
+    )
+  }
+
+  if (!sessionReady) return null
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background to-muted p-4">
       <Card className="w-full max-w-md">
-        <CardHeader className="space-y-1">
-          <CardTitle className="text-2xl font-bold text-center">Reset password</CardTitle>
-          <CardDescription className="text-center">Enter your new password below</CardDescription>
+        <CardHeader className="space-y-1 text-center">
+          <CardTitle className="text-2xl font-bold">Reset Password</CardTitle>
+          <CardDescription>Enter your new password below</CardDescription>
         </CardHeader>
         <form onSubmit={handleSubmit}>
           <CardContent className="space-y-4">
@@ -102,7 +118,6 @@ export default function ResetPasswordPage() {
                 <Input
                   id="password"
                   type={showPassword ? "text" : "password"}
-                  placeholder="Enter new password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
@@ -112,21 +127,20 @@ export default function ResetPasswordPage() {
                   type="button"
                   variant="ghost"
                   size="icon"
-                  className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                  className="absolute right-0 top-0 h-full px-3"
                   onClick={() => setShowPassword(!showPassword)}
-                  disabled={loading}
                 >
                   {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </Button>
               </div>
             </div>
+
             <div className="space-y-2">
-              <Label htmlFor="confirmPassword">Confirm New Password</Label>
+              <Label htmlFor="confirmPassword">Confirm Password</Label>
               <div className="relative">
                 <Input
                   id="confirmPassword"
                   type={showConfirmPassword ? "text" : "password"}
-                  placeholder="Confirm new password"
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   required
@@ -136,9 +150,8 @@ export default function ResetPasswordPage() {
                   type="button"
                   variant="ghost"
                   size="icon"
-                  className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                  className="absolute right-0 top-0 h-full px-3"
                   onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                  disabled={loading}
                 >
                   {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </Button>

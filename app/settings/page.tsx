@@ -22,6 +22,8 @@ export default function SettingsPage() {
     full_name: "",
     email: "",
   })
+  const [newPassword, setNewPassword] = useState("")
+  const [confirmPassword, setConfirmPassword] = useState("")
 
   useEffect(() => {
     if (user) {
@@ -38,16 +40,9 @@ export default function SettingsPage() {
       const { error } = await supabase.auth.updateUser({
         data: { full_name: profile.full_name },
       })
-
       if (error) throw error
-
-      // Update the users table as well
       await supabase.from("users").update({ full_name: profile.full_name }).eq("id", user?.id)
-
-      toast({
-        title: "Profile updated",
-        description: "Your profile has been updated successfully.",
-      })
+      toast({ title: "Profile updated", description: "Your profile has been updated successfully." })
     } catch (error: any) {
       toast({
         title: "Error",
@@ -59,6 +54,27 @@ export default function SettingsPage() {
     }
   }
 
+  const handleChangePassword = async () => {
+    if (newPassword !== confirmPassword) {
+      toast({ title: "Error", description: "Passwords do not match", variant: "destructive" })
+      return
+    }
+    if (newPassword.length < 6) {
+      toast({ title: "Error", description: "Password must be at least 6 characters long", variant: "destructive" })
+      return
+    }
+    setLoading(true)
+    const { error } = await supabase.auth.updateUser({ password: newPassword })
+    if (error) {
+      toast({ title: "Error", description: error.message, variant: "destructive" })
+    } else {
+      toast({ title: "Success", description: "Password updated successfully." })
+      setNewPassword("")
+      setConfirmPassword("")
+    }
+    setLoading(false)
+  }
+
   return (
     <div className="space-y-6">
       <div>
@@ -67,7 +83,6 @@ export default function SettingsPage() {
       </div>
 
       <div className="grid gap-6">
-        {/* Profile Settings */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -98,7 +113,41 @@ export default function SettingsPage() {
           </CardContent>
         </Card>
 
-        {/* Appearance Settings */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Shield className="h-5 w-5" />
+              Change Password
+            </CardTitle>
+            <CardDescription>Update your account password</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="newPassword">New Password</Label>
+              <Input
+                id="newPassword"
+                type="password"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                placeholder="Enter new password"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="confirmPassword">Confirm New Password</Label>
+              <Input
+                id="confirmPassword"
+                type="password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                placeholder="Confirm new password"
+              />
+            </div>
+            <Button onClick={handleChangePassword} disabled={loading}>
+              {loading ? "Updating..." : "Change Password"}
+            </Button>
+          </CardContent>
+        </Card>
+
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -114,27 +163,14 @@ export default function SettingsPage() {
                 <p className="text-sm text-muted-foreground">Choose your preferred theme</p>
               </div>
               <div className="flex items-center space-x-2">
-                <Button variant={theme === "light" ? "default" : "outline"} size="sm" onClick={() => setTheme("light")}>
-                  <Sun className="h-4 w-4 mr-2" />
-                  Light
-                </Button>
-                <Button variant={theme === "dark" ? "default" : "outline"} size="sm" onClick={() => setTheme("dark")}>
-                  <Moon className="h-4 w-4 mr-2" />
-                  Dark
-                </Button>
-                <Button
-                  variant={theme === "system" ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setTheme("system")}
-                >
-                  System
-                </Button>
+                <Button variant={theme === "light" ? "default" : "outline"} size="sm" onClick={() => setTheme("light")}> <Sun className="h-4 w-4 mr-2" /> Light </Button>
+                <Button variant={theme === "dark" ? "default" : "outline"} size="sm" onClick={() => setTheme("dark")}> <Moon className="h-4 w-4 mr-2" /> Dark </Button>
+                <Button variant={theme === "system" ? "default" : "outline"} size="sm" onClick={() => setTheme("system")}> System </Button>
               </div>
             </div>
           </CardContent>
         </Card>
 
-        {/* Notifications */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -167,22 +203,6 @@ export default function SettingsPage() {
               </div>
               <Switch defaultChecked />
             </div>
-          </CardContent>
-        </Card>
-
-        {/* Privacy & Security */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Shield className="h-5 w-5" />
-              Privacy & Security
-            </CardTitle>
-            <CardDescription>Manage your privacy and security settings</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <Button variant="outline">Change Password</Button>
-            <Button variant="outline">Download My Data</Button>
-            <Button variant="destructive">Delete Account</Button>
           </CardContent>
         </Card>
       </div>
