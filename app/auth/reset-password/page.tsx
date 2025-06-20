@@ -23,22 +23,22 @@ export default function ResetPasswordPage() {
   const { toast } = useToast()
 
   useEffect(() => {
-    // Handle the auth callback
-    const handleAuthCallback = async () => {
-      const { data, error } = await supabase.auth.getSession()
+  const handleSession = async () => {
+    const { error } = await supabase.auth.exchangeCodeForSession()
 
-      if (error) {
-        toast({
-          title: "Error",
-          description: "Invalid or expired reset link.",
-          variant: "destructive",
-        })
-        router.push("/auth/login")
-      }
+    if (error) {
+      toast({
+        title: "Error",
+        description: "Invalid or expired reset link.",
+        variant: "destructive",
+      })
+      router.push("/auth/login")
     }
+  }
 
-    handleAuthCallback()
-  }, [router, toast])
+  handleSession()
+}, [router, toast])
+
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
