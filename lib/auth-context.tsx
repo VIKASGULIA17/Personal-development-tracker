@@ -80,14 +80,17 @@ export const AuthProvider = ({ children }) => {
   }
 
   const resetPassword = async (email) => {
-    try {
-      const { data, error } = await supabase.auth.resetPasswordForEmail(email)
-      if (error) throw error
-      return { success: true, error: null }
-    } catch (error) {
-      return { success: false, error: error.message || "Failed to reset password." }
-    }
+  try {
+    const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${process.env.NEXT_PUBLIC_BASE_URL}/auth/reset-password`,
+    })
+    if (error) throw error
+    return { success: true, error: null }
+  } catch (error) {
+    return { success: false, error: error.message || "Failed to reset password." }
   }
+}
+
 
   const updatePassword = async (password) => {
     try {

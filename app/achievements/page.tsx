@@ -30,7 +30,6 @@ export default function AchievementsPage() {
       setError(null)
       const data = await getAchievements(user.id)
 
-      // Transform database achievements and add mock achievements for demo
       const transformedAchievements = [
         ...data.map((achievement) => ({
           id: achievement.id,
@@ -42,7 +41,7 @@ export default function AchievementsPage() {
           color: getColorForBadgeType(achievement.badge_type),
           earned: true,
         })),
-        // Add some mock achievements for demo purposes
+        // mock data for now 
         {
           id: "mock-1",
           name: "First Steps",

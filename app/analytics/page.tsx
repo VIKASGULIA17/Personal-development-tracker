@@ -34,14 +34,14 @@ export default function AnalyticsPage() {
     try {
       setLoading(true)
 
-      // Fetch data from all modules
+      // data from supabase <--
       const [exercises, projects, tasks] = await Promise.all([
         getExercises(user.id),
         getProjects(user.id),
         getTasks(user.id),
       ])
 
-      // Calculate analytics
+      // to calculate top bars 
       const completedExercises = exercises.filter((e) => e.completed).length
       const completedProjects = projects.filter((p) => p.status === "completed").length
       const completedTasks = tasks.filter((t) => t.status === "completed").length
@@ -63,7 +63,7 @@ export default function AnalyticsPage() {
     }
   }
 
-  // Calculate percentages
+  // to calculate percentages
   const exerciseCompletionRate =
     analytics.totalExercises > 0 ? Math.round((analytics.completedExercises / analytics.totalExercises) * 100) : 0
 
