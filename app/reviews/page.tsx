@@ -17,6 +17,8 @@ export default function ReviewsPage() {
   const [reviews, setReviews] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [streak, setStreak] = useState(0)
+
 
   const [newReview, setNewReview] = useState({
     type: "daily",
@@ -31,20 +33,27 @@ export default function ReviewsPage() {
   }, [user])
 
   const fetchReviews = async () => {
-    if (!user?.id) return
+  if (!user?.id) return
 
-    try {
-      setLoading(true)
-      setError(null)
-      const data = await getReviews(user.id)
-      setReviews(data)
-    } catch (err) {
-      setError("Failed to fetch reviews")
-      console.error("Error fetching reviews:", err)
-    } finally {
-      setLoading(false)
-    }
+  try {
+    setLoading(true)
+    setError(null)
+
+    const data = await getReviews(user.id)
+    setReviews(data)
+
+    // 🧠 Calculate streak from review dates
+    const dates = data.map((r) => r.date)
+    const streakDays = calculateStreak(dates)
+    setStreak(streakDays)
+  } catch (err) {
+    setError("Failed to fetch reviews")
+    console.error("Error fetching reviews:", err)
+  } finally {
+    setLoading(false)
   }
+}
+
 
   const addReview = async () => {
     if (!newReview.content.trim()) {
@@ -135,6 +144,32 @@ export default function ReviewsPage() {
     )
   }
 
+const calculateStreak = (reviewDates: string[]) => {
+  const today = new Date()
+  let streakCount = 0
+
+  // Convert all dates to ISO strings with no time
+  const reviewDays = new Set(
+    reviewDates.map(dateStr =>
+      new Date(dateStr).toISOString().split("T")[0]
+    )
+  )
+
+  // Check how many consecutive days back have a review
+  for (let i = 0; i < 365; i++) {
+    const date = new Date()
+    date.setDate(today.getDate() - i)
+    const dateStr = date.toISOString().split("T")[0]
+
+    if (reviewDays.has(dateStr)) {
+      streakCount++
+    } else {
+      break
+    }
+  }
+
+  return streakCount
+}
 
   return (
     <div className="space-y-4 md:space-y-6">
@@ -202,7 +237,10 @@ export default function ReviewsPage() {
             </div>
             <div className="text-center md:text-left">
               <p className="text-xs md:text-sm font-medium leading-none">Streak</p>
-              <p className="text-lg md:text-2xl font-bold">7 days</p>
+              <p className="text-lg md:text-2xl font-bold">
+  {streak} {streak === 1 ? "day" : "days"}
+</p>
+
             </div>
           </CardContent>
         </Card>

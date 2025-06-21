@@ -19,8 +19,9 @@ export default function SignupPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [SendLink, setSendLink] = useState(false)
   const [demoLoading, setDemoLoading] = useState(false)
-  const { signUp, tempLogin } = useAuth()
+  const { signUp } = useAuth()
   const { toast } = useToast()
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -59,23 +60,10 @@ export default function SignupPage() {
     }
 
     setLoading(false)
+    setSendLink(true)
   }
 
-  const handleDemoLogin = async () => {
-    setDemoLoading(true)
-
-    const { success, error } = await tempLogin()
-
-    if (!success) {
-      toast({
-        title: "Error",
-        description: error || "Failed to sign in with demo account.",
-        variant: "destructive",
-      })
-    }
-
-    setDemoLoading(false)
-  }
+  
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background to-muted p-4">
@@ -166,7 +154,7 @@ export default function SignupPage() {
                   size="icon"
                   className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
                   onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                  disabled={loading || demoLoading}
+                  disabled={loading}
                 >
                   {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </Button>
@@ -174,16 +162,22 @@ export default function SignupPage() {
             </div>
           </CardContent>
           <CardFooter className="flex flex-col space-y-4">
-            <Button type="submit" className="w-full" disabled={loading || demoLoading}>
+            <Button type="submit" className="w-full" disabled={loading}>
               {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Create Account
             </Button>
+            
+
             <div className="text-center text-sm text-muted-foreground">
               Already have an account?{" "}
               <Link href="/auth/login" className="text-primary underline-offset-4 hover:underline">
                 Sign in
               </Link>
             </div>
+{(SendLink )&&
+
+            <p className="text-green-400 ">A verification link has been sent to your email</p>
+}
           </CardFooter>
         </form>
       </Card>
