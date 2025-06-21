@@ -47,7 +47,6 @@ export default function DisciplinePage() {
     try {
       const today = new Date().toISOString().split("T")[0]
       const data = await getDisciplineEntries(user.id)
-      console.log("User ID:", user?.id)
 
 
       const { data: completions } = await supabase
