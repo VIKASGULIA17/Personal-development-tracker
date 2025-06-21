@@ -9,11 +9,13 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useToast } from "@/hooks/use-toast"
 import { useAuth } from "@/lib/auth-context"
-import { getDisciplineEntries, updateDisciplineEntry } from "@/lib/db"
+import { getDisciplineEntries, toggleDisciplineCompletion } from "@/lib/db"
 import AddHabitDialog from "../../components/AddHabitDialogue"
+import { supabase } from "@/lib/supabase" 
+
 
 export default function DisciplinePage() {
-    const { toast } = useToast()
+  const { toast } = useToast()
   const { user } = useAuth()
   const [habits, setHabits] = useState([])
   const [loading, setLoading] = useState(true)
@@ -45,6 +47,18 @@ export default function DisciplinePage() {
     try {
       const today = new Date().toISOString().split("T")[0]
       const data = await getDisciplineEntries(user.id)
+      console.log("User ID:", user?.id)
+
+
+      const { data: completions } = await supabase
+        .from("discipline_completion")
+        .select("discipline_id, date")
+        .eq("user_id", user.id)
+
+      const completedMap = new Map()
+      completions?.forEach((c) => {
+        completedMap.set(c.discipline_id + "_" + c.date, true)
+      })
 
       const grouped = data.reduce((acc, entry) => {
         if (!acc[entry.name]) acc[entry.name] = []
@@ -53,15 +67,17 @@ export default function DisciplinePage() {
       }, {})
 
       const transformedHabits = Object.entries(grouped).map(([name, entries]) => {
-        const completedDates = entries.filter(e => e.completed).map(e => e.date)
-        const todayEntry = entries.find(e => e.date === today)
+        const first = entries[0]
+        const completedDates = completions
+          .filter((c) => c.discipline_id === first.id)
+          .map((c) => c.date)
 
         return {
-          id: todayEntry?.id || entries[0].id,
+          id: first.id,
           name,
-          description: entries[0].description,
-          category: entries[0].type,
-          completed: todayEntry?.completed || false,
+          description: first.description,
+          category: first.type,
+          completed: completedMap.has(first.id + "_" + today),
           streak: calculateStreak(completedDates),
           target: 30,
         }
@@ -81,25 +97,26 @@ export default function DisciplinePage() {
     if (!habit) return
 
     try {
-      await updateDisciplineEntry(habitId, { completed: !habit.completed })
+      const today = new Date().toISOString().split("T")[0]
+      const nowCompleted = await toggleDisciplineCompletion(user.id, habitId, today)
 
       setHabits(
         habits.map((h) =>
           h.id === habitId
             ? {
                 ...h,
-                completed: !h.completed,
-                streak: !h.completed ? h.streak + 1 : Math.max(0, h.streak - 1),
+                completed: nowCompleted,
+                streak: nowCompleted ? h.streak + 1 : Math.max(0, h.streak - 1),
               }
             : h,
         ),
       )
 
       toast({
-        title: habit.completed ? "Habit Unchecked" : "Habit Completed!",
-        description: habit.completed
-          ? `${habit.name} marked as incomplete`
-          : `Great job! ${habit.name} completed for today`,
+        title: nowCompleted ? "Habit Completed!" : "Habit Unchecked",
+        description: nowCompleted
+          ? `Great job! ${habit.name} completed for today`
+          : `${habit.name} marked as incomplete`,
       })
     } catch (error) {
       console.error("Error toggling habit:", error)
