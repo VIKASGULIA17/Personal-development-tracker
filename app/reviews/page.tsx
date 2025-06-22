@@ -26,6 +26,34 @@ export default function ReviewsPage() {
     mood: 3,
   })
 
+    const calculateStreak = (reviewDates: string[]) => {
+  const today = new Date()
+  let streakCount = 0
+
+  // Convert all dates to ISO strings with no time
+  const reviewDays = new Set(
+    reviewDates.map(dateStr =>
+      new Date(dateStr).toISOString().split("T")[0]
+    )
+  )
+
+  // Check how many consecutive days back have a review
+  for (let i = 0; i < 365; i++) {
+    const date = new Date()
+    date.setDate(today.getDate() - i)
+    const dateStr = date.toISOString().split("T")[0]
+
+    if (reviewDays.has(dateStr)) {
+      streakCount++
+    } else {
+      break
+    }
+  }
+
+  return streakCount
+}
+
+
   useEffect(() => {
     if (user?.id) {
       fetchReviews()
@@ -144,32 +172,6 @@ export default function ReviewsPage() {
     )
   }
 
-const calculateStreak = (reviewDates: string[]) => {
-  const today = new Date()
-  let streakCount = 0
-
-  // Convert all dates to ISO strings with no time
-  const reviewDays = new Set(
-    reviewDates.map(dateStr =>
-      new Date(dateStr).toISOString().split("T")[0]
-    )
-  )
-
-  // Check how many consecutive days back have a review
-  for (let i = 0; i < 365; i++) {
-    const date = new Date()
-    date.setDate(today.getDate() - i)
-    const dateStr = date.toISOString().split("T")[0]
-
-    if (reviewDays.has(dateStr)) {
-      streakCount++
-    } else {
-      break
-    }
-  }
-
-  return streakCount
-}
 
   return (
     <div className="space-y-4 md:space-y-6">

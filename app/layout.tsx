@@ -6,6 +6,19 @@ import Sidebar from "@/components/sidebar"
 import { AuthProvider } from "@/lib/auth-context"
 import { NotificationProvider } from "@/lib/notifications"
 import ProtectedRoute from "@/components/auth/protected-route"
+import type { Metadata } from "next"
+
+export const metadata: Metadata = {
+  title: "Personal Growth Tracker",
+  description: "Track your personal development journey",
+  keywords: [
+    "personal growth", "habit tracker", "self improvement", "productivity tracker",
+    "daily discipline", "goal setting", "self development app", "self improvement tracker"
+  ],
+  icons: {
+    icon: "/website-logo.jpg",
+  },
+}
 
 export default function RootLayout({
   children,
