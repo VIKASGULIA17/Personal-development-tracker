@@ -18,6 +18,7 @@ import {
   MessageSquare,
   PieChart,
   SmilePlus,
+  CalendarDays,
   Target,
   Wallet,
   Sparkles,
@@ -30,6 +31,7 @@ import { NotificationCenter } from "@/lib/notifications"
 
 const navItems = [
   { name: "Dashboard", href: "/", icon: Home },
+  { name: "Schedule", href: "/schedule", icon: CalendarDays },
   { name: "Skills", href: "/skills", icon: Target },
   { name: "Intelligence", href: "/intelligence", icon: Brain },
   { name: "Finance", href: "/finance", icon: Wallet },

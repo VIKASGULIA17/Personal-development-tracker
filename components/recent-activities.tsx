@@ -61,7 +61,7 @@ export default function RecentActivities() {
   }
 
   return (
-    <Card className="w-[91%] lg:w-full">
+    <Card className=" lg:w-full">
       <CardHeader>
         <CardTitle>Recent Activities</CardTitle>
         <CardDescription>Your latest tracked activities</CardDescription>

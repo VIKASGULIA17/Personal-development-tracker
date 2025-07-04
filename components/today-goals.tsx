@@ -103,7 +103,7 @@ export default function TodayGoals() {
   }
 
   return (
-    <Card className="w-[90%] lg:w-full">
+    <Card className="lg:w-full">
       <CardHeader>
         <CardTitle>Today's Goals</CardTitle>
         <CardDescription>Complete your daily objectives</CardDescription>
